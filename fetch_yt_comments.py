@@ -204,7 +204,7 @@ def generate_index():
                             day = parts[2]
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
-                            title = "📌 單集精讀" if "custom" in file else "全美 Top 50 深度閱讀"
+                            title = "📌 单集精读" if "custom" in file else "📌 每周热播"
                             
                             if day not in archive_data[year][month]:
                                 archive_data[year][month][day] = []
@@ -262,10 +262,13 @@ def generate_index():
         .dot { width: 5px; height: 5px; background-color: var(--primary); border-radius: 50%; position: absolute; bottom: 6px; display: none; }
         .day-cell.has-news .dot { display: block; }
         .news-section { padding: 0 15px; }
-        .news-item { background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; }
+        
+        .news-item-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .news-item { flex: 1; background: var(--card); border-radius: 14px; padding: 18px 16px; margin-bottom: 0; display: flex; align-items: center; text-decoration: none; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); border-left: 4px solid var(--primary); transition: all 0.2s; overflow: hidden; }
         .news-item:active { transform: scale(0.98); background: #fafafa; }
-        .news-time { font-size: 15px; font-weight: bold; flex-shrink: 0; color: var(--primary); }
-        .news-title { font-size: 14px; color: #555; margin-left: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; flex: 1; font-weight: 500; }
+        .news-title { font-size: 15px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: bold; flex: 1; }
+        .delete-btn { background: #ff3b30; color: white; border: none; border-radius: 10px; padding: 0 15px; height: 54px; font-size: 16px; cursor: pointer; display: none; transition: all 0.2s; flex-shrink: 0; }
+        
         .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; background: var(--card); border-radius: 14px; }
         
         #loadingBar { height: 3px; background: var(--primary); width: 0%; transition: width 0.3s; position: absolute; top: 0; left: 0; z-index: 30; }
@@ -336,6 +339,7 @@ def generate_index():
         let selectedYear = currentYear;
         let selectedMonth = currentMonth;
         
+        window.deleteMode = false;
         const yearSelect = document.getElementById('yearSelect');
         const monthSelect = document.getElementById('monthSelect');
         const daysGrid = document.getElementById('daysGrid');
@@ -363,7 +367,7 @@ def generate_index():
                 const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
                 const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
                 
-                if (monthData[day]) cell.classList.add('has-news'); else cell.classList.add('no-news');
+                if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
                 if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
                 if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
                 
@@ -378,16 +382,96 @@ def generate_index():
             const dayData = monthData ? monthData[day] : null;
             
             if (dayData && dayData.length > 0) {
-                dayData.forEach(news => {
+                dayData.forEach((news, index) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'news-item-wrapper';
+
                     const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                    const titleStyle = news.title.includes("單集") ? 'color: var(--primary); font-weight: bold;' : '';
-                    a.innerHTML = `<span class="news-time">${news.time}</span><span class="news-title" style="${titleStyle}">${news.title} ➔</span>`;
-                    newsList.appendChild(a);
+                    
+                    let displayTitle = news.title;
+                    if (displayTitle.includes("全美 Top 50 深度阅读")) {
+                        displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
+                    }
+                    
+                    const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
+                    
+                    a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
+                    wrapper.appendChild(a);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn';
+                    delBtn.innerHTML = '🗑️';
+                    if (window.deleteMode) delBtn.style.display = 'block';
+                    
+                    delBtn.onclick = async (e) => {
+                        e.preventDefault();
+                        if(confirm('确认删除此条目吗？')) {
+                            dayData.splice(index, 1);
+                            if (dayData.length === 0) delete archiveData[year][month][day];
+                            renderCalendar(year, month);
+                            renderNews(year, month, day);
+                            await syncDeleteToGithub();
+                        }
+                    };
+                    wrapper.appendChild(delBtn);
+
+                    newsList.appendChild(wrapper);
                 });
             } else {
-                newsList.innerHTML = '<div class="empty-state">當日暫無歸檔記錄，去外面看看吧 👀</div>';
+                newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
             }
         }
+
+        async function syncDeleteToGithub() {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if (!ghToken || !ghOwner || !ghRepo) return;
+            try {
+                loadingBar.style.width = '30%';
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                    headers: { 'Authorization': `token ${ghToken}` }
+                });
+                const idxData = await idxRes.json();
+                const idxContent = decodeURIComponent(escape(atob(idxData.content)));
+
+                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
+                const dataEnd = idxContent.indexOf('/*DATA_END*/');
+                const newJsonStr = JSON.stringify(archiveData);
+                const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
+
+                loadingBar.style.width = '80%';
+                await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `Delete calendar item`,
+                        content: btoa(unescape(encodeURIComponent(newIdxContent))),
+                        sha: idxData.sha
+                    })
+                });
+                loadingBar.style.width = '100%';
+                setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
+            } catch(e) {
+                console.error("Sync delete failed", e);
+                loadingBar.style.width = '0%';
+            }
+        }
+
+        // 双击/连击日历区域切换删除模式
+        let lastTap = 0;
+        const calWrapper = document.querySelector('.calendar-wrapper');
+        calWrapper.addEventListener('click', function(e) {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                window.deleteMode = !window.deleteMode;
+                const btns = document.querySelectorAll('.delete-btn');
+                btns.forEach(btn => btn.style.display = window.deleteMode ? 'block' : 'none');
+                e.preventDefault();
+            }
+            lastTap = currentTime;
+        });
 
         yearSelect.addEventListener('change', (e) => { selectedYear = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
         monthSelect.addEventListener('change', (e) => { selectedMonth = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
@@ -522,7 +606,7 @@ def generate_index():
                     const newItem = {
                         time: hhmmStr,
                         path: fileRelPath,
-                        title: `📌 單集精讀: ${video.snippet.title}`
+                        title: `📌 单集精读: ${video.snippet.title}`
                     };
                     archiveObj[year][month][day].unshift(newItem);
 
