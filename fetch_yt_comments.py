@@ -405,12 +405,13 @@ def generate_index():
                     
                     delBtn.onclick = async (e) => {
                         e.preventDefault();
-                        if(confirm('确认删除此条目吗？')) {
+                        if(confirm('确认删除此条目并同步删除云端文件吗？')) {
+                            const pathToDelete = news.path; // 保存要删除的文件相对路径
                             dayData.splice(index, 1);
                             if (dayData.length === 0) delete archiveData[year][month][day];
                             renderCalendar(year, month);
                             renderNews(year, month, day);
-                            await syncDeleteToGithub();
+                            await syncDeleteToGithub(pathToDelete);
                         }
                     };
                     wrapper.appendChild(delBtn);
@@ -422,13 +423,38 @@ def generate_index():
             }
         }
 
-        async function syncDeleteToGithub() {
+        async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) return;
+            if (!ghToken || !ghOwner || !ghRepo) {
+                alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
+                return;
+            }
             try {
-                loadingBar.style.width = '30%';
+                loadingBar.style.width = '10%';
+                
+                // 第一步：彻底删除 GitHub 上的 HTML 实体文件
+                const targetFilePath = `docs/${fileRelPath}`;
+                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
+                    headers: { 'Authorization': `token ${ghToken}` }
+                });
+                
+                if (fileRes.ok) {
+                    const fileData = await fileRes.json();
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `Delete archived html file: ${fileRelPath}`,
+                            sha: fileData.sha
+                        })
+                    });
+                }
+                
+                loadingBar.style.width = '50%';
+
+                // 第二步：更新 index.html 以抹除索引
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                     headers: { 'Authorization': `token ${ghToken}` }
                 });
@@ -445,15 +471,17 @@ def generate_index():
                     method: 'PUT',
                     headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: `Delete calendar item`,
+                        message: `Update index.html after deleting file`,
                         content: btoa(unescape(encodeURIComponent(newIdxContent))),
                         sha: idxData.sha
                     })
                 });
+                
                 loadingBar.style.width = '100%';
                 setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
             } catch(e) {
                 console.error("Sync delete failed", e);
+                alert('远端删除过程出现错误，请检查控制台。');
                 loadingBar.style.width = '0%';
             }
         }
