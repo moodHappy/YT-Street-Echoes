@@ -1,16 +1,16 @@
 name: Catch Daily YouTube Vibe
 
-# 每天北京/东京时间早上 8:00 (UTC 00:00) 自动抓取一次
+# 触发条件：定时触发 + 手动触发
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch: # 允许你手动随时点击运行
+    - cron: '0 0 * * *'  # 每天北京/东京时间早上 8:00 (UTC 00:00) 运行
+  workflow_dispatch:     # 允许在 GitHub 网页上手动点击运行
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write    # 赋予机器人写入代码库的权限
 
     steps:
       - name: Checkout code
@@ -26,7 +26,7 @@ jobs:
 
       - name: Fetch YouTube Comments
         env:
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }} # 这里将秘密喂给打工人
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }} # 将秘密喂给打工人
         run: python fetch_yt_comments.py
 
       - name: Commit and Push changes
@@ -34,8 +34,8 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # 核心修改：追踪整个 docs 目录，包含主页和每天自动生成的子文件夹
-          git add docs/
+          # 使用 "." 追踪当前目录下的所有新增和变动，完美兼容 docs 及其内部子文件夹
+          git add .
           
-          # 检查是否有暂存的修改，如果有则提交并推送
-          git diff --staged --quiet || (git commit -m "Auto update daily vibe calendar" && git push)
+          # 如果有新文件或改动，就提交并推送到仓库
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto update daily vibe calendar" && git push)
