@@ -33,5 +33,9 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add index.html
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto update daily vibe" && git push)
+          
+          # 核心修改：追踪整个 docs 目录，包含主页和每天自动生成的子文件夹
+          git add docs/
+          
+          # 检查是否有暂存的修改，如果有则提交并推送
+          git diff --staged --quiet || (git commit -m "Auto update daily vibe calendar" && git push)
