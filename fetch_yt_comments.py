@@ -4,27 +4,27 @@ import json
 import re
 from datetime import datetime, timezone, timedelta
 
-# ================= 配置区 =================
+# ================= 配置區 =================
 BASE_DIR = "docs"
 API_KEY = os.environ.get('YOUTUBE_API_KEY')
 tz_utc_8 = timezone(timedelta(hours=8))
 
-# 版块排序与分类ID (YouTube API 标准分类)
+# 版塊排序與分類ID (YouTube API 標準分類)
 CATEGORIES = [
-    {"name": "📰 新闻前十 (News)", "id": "25"},
-    {"name": "🔥 最热前十 (Trending)", "id": None},
-    {"name": "🎵 音乐前十 (Music)", "id": "10"},
-    {"name": "🎬 影视前十 (Movies)", "id": "1"},
-    {"name": "💖 粉丝热推 (Entertainment)", "id": "24"}
+    {"name": "📰 新聞前十 (News)", "id": "25"},
+    {"name": "🔥 最熱前十 (Trending)", "id": None},
+    {"name": "🎵 音樂前十 (Music)", "id": "10"},
+    {"name": "🎬 影視前十 (Movies)", "id": "1"},
+    {"name": "💖 粉絲熱推 (Entertainment)", "id": "24"}
 ]
 # ==========================================
 
 def clean_uppercase(text):
-    """正则替换：将长度>=2的纯大写单词转换为小写，保留正常的首字母大写"""
+    """正則替換：將長度>=2的純大寫單詞轉換為小寫，保留正常的首字母大寫"""
     return re.sub(r'\b[A-Z]{2,}\b', lambda x: x.group().lower(), text)
 
 def fetch_category_videos(category_id):
-    """获取指定版块的前十热门视频"""
+    """獲取指定版塊的前十熱門視頻"""
     url = "https://www.googleapis.com/youtube/v3/videos"
     params = {
         "part": "snippet,statistics",
@@ -40,11 +40,11 @@ def fetch_category_videos(category_id):
         res = requests.get(url, params=params, timeout=15).json()
         return res.get('items', [])
     except Exception as e:
-        print(f"❌ 视频列表获取失败: {e}")
+        print(f"❌ 視頻列表獲取失敗: {e}")
         return []
 
 def fetch_top_comments(video_id):
-    """获取该视频的高赞前排评论，进行过滤并转换大写"""
+    """獲取該視頻的高讚前排評論，進行過濾並轉換大寫"""
     url = f"https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId={video_id}&order=relevance&maxResults=60&key={API_KEY}"
     comments = []
     try:
@@ -54,6 +54,7 @@ def fetch_top_comments(video_id):
                 snippet = item['snippet']['topLevelComment']['snippet']
                 raw_text = snippet['textDisplay']
                 
+                # 過濾條件：太短的不要，帶鏈接的不要
                 if len(raw_text.split()) > 6 and 'href=' not in raw_text:
                     cleaned_text = clean_uppercase(raw_text)
                     comments.append({
@@ -70,7 +71,7 @@ def fetch_top_comments(video_id):
     return comments[:30]
 
 def save_daily_vibe(daily_data, now_obj):
-    """生成带有双重折叠、且内嵌原版聊天气泡UI的HTML"""
+    """生成帶有雙重摺疊、且內嵌原版聊天氣泡UI的HTML"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
@@ -92,12 +93,10 @@ def save_daily_vibe(daily_data, now_obj):
         
         .nav-back {{ padding: 15px; text-align: center; background: var(--card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }}
         .nav-back a {{ text-decoration: none; color: white; background: #ff0000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }}
-        /* --- 一级折叠：版块 --- */
         .category-details {{ margin-bottom: 15px; background: var(--bg); }}
         .category-summary {{ background: var(--card); padding: 16px 20px; border-radius: 16px; font-size: 1.2rem; font-weight: 800; cursor: pointer; list-style: none; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between; color: #333; }}
         .category-summary::-webkit-details-marker {{ display: none; }}
         .category-details[open] > .category-summary {{ border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 1px solid #eee; color: var(--accent); }}
-        /* --- 二级折叠：视频列表 --- */
         .video-details {{ background: var(--card); margin-bottom: 2px; }}
         .video-details:last-child {{ border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; margin-bottom: 0; }}
         .video-summary {{ padding: 15px 20px; font-size: 0.95rem; font-weight: 600; cursor: pointer; list-style: none; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #f9f9f9; }}
@@ -105,7 +104,6 @@ def save_daily_vibe(daily_data, now_obj):
         .mini-thumb {{ width: 60px; height: 34px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #eee; }}
         .mini-title {{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; color: #444; }}
         .video-details[open] > .video-summary {{ background: #f8f9fa; }}
-        /* --- 展开后的原版 UI --- */
         .expanded-content {{ padding: 20px 0; background: var(--bg); border-bottom: 2px solid #ddd; }}
         
         .video-card {{ background: var(--card); border-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin: 0 15px 25px 15px; }}
@@ -129,7 +127,7 @@ def save_daily_vibe(daily_data, now_obj):
     </style>
 </head>
 <body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日历枢纽</a></div>
+    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
     <div class="container">
         <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 {now_obj.strftime("%Y-%m-%d")}</h2>
 """
@@ -139,7 +137,7 @@ def save_daily_vibe(daily_data, now_obj):
         if not videos: continue
             
         html_content += f'\n        <details class="category-details">\n'
-        if "新闻" in cat_name:
+        if "新聞" in cat_name:
             html_content = html_content.replace('<details class="category-details">', '<details class="category-details" open>')
             
         html_content += f'            <summary class="category-summary"><span>{cat_name}</span> <span>⬇️</span></summary>\n'
@@ -155,7 +153,7 @@ def save_daily_vibe(daily_data, now_obj):
                             <span class="v-channel">{v_channel}</span>
                             <h2 class="v-title" style="font-size:1.1rem;">{v_title}</h2>
                             <div class="v-actions">
-                                <span class="timestamp">更新于: {now_str}</span>
+                                <span class="timestamp">更新於: {now_str}</span>
                                 <a href="{v_url}" target="_blank" class="btn-play">▶ 原片</a>
                             </div>
                         </div>
@@ -163,7 +161,7 @@ def save_daily_vibe(daily_data, now_obj):
                     
             html_content += f'                    <div class="chat-container">\n'
             if not comments:
-                html_content += '                        <div class="empty-state">该视频暂无高价值长评论。</div>\n'
+                html_content += '                        <div class="empty-state">該視頻暫無高價值長評論。</div>\n'
             else:
                 for c in comments:
                     likes_str = f"{c['likes']/1000:.1f}k" if c['likes'] >= 1000 else str(c['likes'])
@@ -186,10 +184,10 @@ def save_daily_vibe(daily_data, now_obj):
     
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
-    print(f"✅ 语料已归档: {html_path}")
+    print(f"✅ 語料已歸檔: {html_path}")
 
 def generate_index():
-    """纯日历枢纽生成器 + 前端手动抓取控制台"""
+    """純日曆樞紐生成器 + 支援動態更新的前端控制台"""
     archive_data = {}
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
@@ -206,8 +204,7 @@ def generate_index():
                             day = parts[2]
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
-                            # 区分是自动生成的 Top50 还是手动抓取的 Custom
-                            title = "📌 单集精读" if "custom" in file else "全美 Top 50 深度阅读"
+                            title = "📌 單集精讀" if "custom" in file else "全美 Top 50 深度閱讀"
                             
                             if day not in archive_data[year][month]:
                                 archive_data[year][month][day] = []
@@ -222,25 +219,22 @@ def generate_index():
                         
     json_data = json.dumps(archive_data)
     
-    # 使用 .replace() 注入数据，避免大段前端代码中的大括号冲突
     html_template = """<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>YouTube 语料日历枢纽</title>
+    <title>YouTube 語料日曆樞紐</title>
     <style>
         :root { --bg: #f5f5f7; --text: #333; --muted: #888; --primary: #ff0000; --border: #e0e0e0; --card: #fff; }
         body, html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
         .container { max-width: 600px; margin: 0 auto; padding-bottom: 20px; }
         
-        /* --- 新增：手动抓取输入栏 UI --- */
         .manual-fetch-bar { background: var(--card); padding: 12px 15px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .fetch-input { flex: 1; padding: 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; outline: none; background: #f9f9f9; transition: border 0.2s; }
         .fetch-input:focus { border-color: var(--primary); background: #fff; }
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
-        /* --- 设置面板模态框 --- */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
@@ -252,7 +246,6 @@ def generate_index():
         .btn-cancel { background: #eee; color: #333; }
         .btn-save { background: var(--primary); color: #fff; }
         
-        /* 日历区与原本样式 */
         .controls { background: var(--bg); padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
         .control-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .control-btn:active { opacity: 0.8; transform: scale(0.95); }
@@ -281,14 +274,14 @@ def generate_index():
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘贴 YouTube 链接，回车生成..." autocomplete="off">
+        <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘貼 YouTube 鏈接，回車生成..." autocomplete="off">
         <button class="settings-btn" onclick="openSettings()">⚙️</button>
     </div>
 
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，不会上传到任何第三方服务器。</p>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密鑰僅保存在您的瀏覽器本地，不會上傳到任何第三方服務器。</p>
             <div class="form-group">
                 <label>YouTube API Key</label>
                 <input type="password" id="cfgYtKey" placeholder="AIzaSy...">
@@ -298,11 +291,11 @@ def generate_index():
                 <input type="password" id="cfgGhToken" placeholder="ghp_...">
             </div>
             <div class="form-group">
-                <label>GitHub 用户名</label>
+                <label>GitHub 用戶名</label>
                 <input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy">
             </div>
             <div class="form-group">
-                <label>GitHub 仓库名</label>
+                <label>GitHub 倉庫名</label>
                 <input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe">
             </div>
             <div class="modal-actions">
@@ -333,8 +326,9 @@ def generate_index():
     </div>
 
     <script>
-        // ================= 1. 日历逻辑 =================
-        const archiveData = REPLACEME_JSON_DATA;
+        // ================= 1. 日曆渲染邏輯 =================
+        // 注意：這裡加入了 DATA_START 和 DATA_END 標記，用於前端無損替換
+        const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
         let currentYear = today.getFullYear();
         let currentMonth = today.getMonth() + 1;
@@ -348,10 +342,11 @@ def generate_index():
         const newsList = document.getElementById('newsList');
 
         function initSelects() {
+            yearSelect.innerHTML = '';
             const years = Object.keys(archiveData).map(Number).sort((a, b) => b - a);
             if (!years.includes(currentYear)) years.unshift(currentYear);
             years.forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); });
-            yearSelect.value = currentYear; monthSelect.value = currentMonth;
+            yearSelect.value = selectedYear; monthSelect.value = selectedMonth;
         }
 
         function renderCalendar(year, month) {
@@ -385,25 +380,24 @@ def generate_index():
             if (dayData && dayData.length > 0) {
                 dayData.forEach(news => {
                     const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                    // 用颜色区分手动抓取
-                    const titleStyle = news.title.includes("单集") ? 'color: var(--primary); font-weight: bold;' : '';
+                    const titleStyle = news.title.includes("單集") ? 'color: var(--primary); font-weight: bold;' : '';
                     a.innerHTML = `<span class="news-time">${news.time}</span><span class="news-title" style="${titleStyle}">${news.title} ➔</span>`;
                     newsList.appendChild(a);
                 });
             } else {
-                newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
+                newsList.innerHTML = '<div class="empty-state">當日暫無歸檔記錄，去外面看看吧 👀</div>';
             }
         }
 
-        yearSelect.addEventListener('change', (e) => renderCalendar(parseInt(e.target.value), parseInt(monthSelect.value)));
-        monthSelect.addEventListener('change', (e) => renderCalendar(parseInt(yearSelect.value), parseInt(e.target.value)));
-        document.getElementById('prevBtn').addEventListener('click', () => { let m = parseInt(monthSelect.value) - 1; let y = parseInt(yearSelect.value); if (m < 1) { m = 12; y--; yearSelect.value = y; } monthSelect.value = m; renderCalendar(y, m); });
-        document.getElementById('nextBtn').addEventListener('click', () => { let m = parseInt(monthSelect.value) + 1; let y = parseInt(yearSelect.value); if (m > 12) { m = 1; y++; yearSelect.value = y; } monthSelect.value = m; renderCalendar(y, m); });
+        yearSelect.addEventListener('change', (e) => { selectedYear = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
+        monthSelect.addEventListener('change', (e) => { selectedMonth = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
+        document.getElementById('prevBtn').addEventListener('click', () => { selectedMonth--; if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; yearSelect.value = selectedYear; } monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); });
+        document.getElementById('nextBtn').addEventListener('click', () => { selectedMonth++; if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; yearSelect.value = selectedYear; } monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); });
         document.getElementById('todayBtn').addEventListener('click', () => { selectedYear = today.getFullYear(); selectedMonth = today.getMonth() + 1; selectedDay = today.getDate(); yearSelect.value = selectedYear; monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); renderNews(selectedYear, selectedMonth, selectedDay); });
 
         initSelects(); renderCalendar(currentYear, currentMonth); renderNews(currentYear, currentMonth, selectedDay);
 
-        // ================= 2. 纯前端抓取与提交逻辑 =================
+        // ================= 2. 純前端無縫抓取與秒更新邏輯 =================
         const ytUrlInput = document.getElementById('ytUrlInput');
         const modal = document.getElementById('settingsModal');
         const loadingBar = document.getElementById('loadingBar');
@@ -425,7 +419,6 @@ def generate_index():
             alert('配置已本地保存！');
         }
 
-        // 解析任何 YouTube 链接提取 Video ID
         function extractVideoId(url) {
             const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
             const match = url.match(regExp);
@@ -436,7 +429,7 @@ def generate_index():
             if (e.key === 'Enter') {
                 const url = ytUrlInput.value.trim();
                 const videoId = extractVideoId(url);
-                if (!videoId) return alert('❌ 无法识别的 YouTube 链接');
+                if (!videoId) return alert('❌ 無法識別的 YouTube 鏈接');
                 
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
@@ -444,7 +437,7 @@ def generate_index():
                 const ghRepo = localStorage.getItem('GH_REPO');
                 
                 if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
-                    alert('请先点击齿轮⚙️配置 API Keys！');
+                    alert('請先點擊齒輪⚙️配置 API Keys！');
                     openSettings();
                     return;
                 }
@@ -453,14 +446,13 @@ def generate_index():
                 ytUrlInput.disabled = true;
 
                 try {
-                    // 1. 请求视频信息
+                    // 1. 獲取視頻與評論數據
                     loadingBar.style.width = '30%';
                     const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${ytKey}`);
                     const vData = await vRes.json();
-                    if (!vData.items || vData.items.length === 0) throw new Error("视频不存在或无权限");
+                    if (!vData.items || vData.items.length === 0) throw new Error("視頻不存在或無權限");
                     const video = vData.items[0];
 
-                    // 2. 请求评论区
                     loadingBar.style.width = '50%';
                     const cRes = await fetch(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&videoId=${videoId}&order=relevance&maxResults=60&key=${ytKey}`);
                     const cData = await cRes.json();
@@ -473,7 +465,7 @@ def generate_index():
                                 comments.push({
                                     author: snippet.authorDisplayName,
                                     avatar: snippet.authorProfileImageUrl,
-                                    text: text.replace(/\b[A-Z]{2,}\b/g, match => match.toLowerCase()), // 简单大写转小写
+                                    text: text.replace(/\b[A-Z]{2,}\b/g, match => match.toLowerCase()),
                                     likes: parseInt(snippet.likeCount || 0)
                                 });
                             }
@@ -482,43 +474,94 @@ def generate_index():
                     comments.sort((a, b) => b.likes - a.likes);
                     comments = comments.slice(0, 30);
 
-                    // 3. 在浏览器中渲染【基础版】HTML模板
-                    loadingBar.style.width = '70%';
+                    loadingBar.style.width = '65%';
                     const htmlOutput = generateBaseHTMLString(video, comments);
 
-                    // 4. 推送到 GitHub
-                    loadingBar.style.width = '90%';
+                    // 2. 計算時間和路徑
                     const now = new Date();
-                    const year = now.getFullYear();
-                    const month = now.getMonth() + 1;
-                    const day = now.getDate();
-                    const hhmm = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
-                    const filename = `${year}_${month}_${day}_${hhmm}_custom.html`;
+                    const year = now.getFullYear().toString();
+                    const month = (now.getMonth() + 1).toString();
+                    const day = now.getDate().toString();
+                    const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+                    const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
-                    // 注意：GitHub API 路径，如果你的静态页面放在根目录 docs/ 下
-                    const filePath = `docs/${year}/${month}/${filename}`;
-                    
-                    const ghRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${filePath}`, {
+                    const filename = `${year}_${month}_${day}_${hhmmFile}_custom.html`;
+                    const fileRelPath = `${year}/${month}/${filename}`;
+                    const fileApiPath = `docs/${year}/${month}/${filename}`;
+
+                    // 3. 提交單集 HTML 檔案到 GitHub
+                    loadingBar.style.width = '75%';
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${fileApiPath}`, {
                         method: 'PUT',
-                        headers: {
-                            'Authorization': `token ${ghToken}`,
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             message: `Add custom video: ${video.snippet.title}`,
-                            content: btoa(unescape(encodeURIComponent(htmlOutput))) // 解决中文 Base64 编码问题
+                            content: btoa(unescape(encodeURIComponent(htmlOutput)))
                         })
                     });
 
-                    if (!ghRes.ok) throw new Error(await ghRes.text());
+                    // 4. 下載並更新 index.html 中的日曆數據 (確保 GitHub 雲端也更新)
+                    loadingBar.style.width = '85%';
+                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                        headers: { 'Authorization': `token ${ghToken}` }
+                    });
+                    const idxData = await idxRes.json();
+                    const idxSha = idxData.sha;
+                    const idxContent = decodeURIComponent(escape(atob(idxData.content)));
+
+                    const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
+                    const dataEnd = idxContent.indexOf('/*DATA_END*/');
+                    const oldJsonStr = idxContent.substring(dataStart, dataEnd);
+                    const archiveObj = JSON.parse(oldJsonStr);
+
+                    // 在解析出的對象中插入新視頻記錄
+                    if (!archiveObj[year]) archiveObj[year] = {};
+                    if (!archiveObj[year][month]) archiveObj[year][month] = {};
+                    if (!archiveObj[year][month][day]) archiveObj[year][month][day] = [];
+                    
+                    const newItem = {
+                        time: hhmmStr,
+                        path: fileRelPath,
+                        title: `📌 單集精讀: ${video.snippet.title}`
+                    };
+                    archiveObj[year][month][day].unshift(newItem);
+
+                    // 寫回並推送到 GitHub
+                    const newJsonStr = JSON.stringify(archiveObj);
+                    const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
+                    
+                    loadingBar.style.width = '95%';
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                        method: 'PUT',
+                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `Update index.html calendar with custom video`,
+                            content: btoa(unescape(encodeURIComponent(newIdxContent))),
+                            sha: idxSha
+                        })
+                    });
+
+                    // 5. 劫持本地內存，無刷新直接顯示在畫面上！
+                    if (!archiveData[year]) archiveData[year] = {};
+                    if (!archiveData[year][month]) archiveData[year][month] = {};
+                    if (!archiveData[year][month][day]) archiveData[year][month][day] = [];
+                    archiveData[year][month][day].unshift(newItem);
+
+                    selectedYear = parseInt(year);
+                    selectedMonth = parseInt(month);
+                    selectedDay = parseInt(day);
+                    
+                    initSelects();
+                    renderCalendar(selectedYear, selectedMonth);
+                    renderNews(selectedYear, selectedMonth, selectedDay);
 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取并推送成功！刷新页面即可看到新添加的单集记录。');
+                    alert('🎉 抓取成功！新視頻已無縫添加到今天的日曆中。');
                     ytUrlInput.value = '';
-                    setTimeout(() => window.location.reload(), 1000);
+                    setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失败: ' + err.message);
+                    alert('❌ 操作失敗: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     ytUrlInput.disabled = false;
@@ -526,7 +569,7 @@ def generate_index():
             }
         });
 
-        // 完全复刻的【基础版】排版生成器 (JS版本)
+        // 基礎版排版生成器 (JS版本)
         function generateBaseHTMLString(video, comments) {
             const snippet = video.snippet;
             const v_title = snippet.title;
@@ -584,7 +627,7 @@ def generate_index():
     </style>
 </head>
 <body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日历枢纽</a></div>
+    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
     <div class="container">
         <div class="video-card">
             <a href="${v_url}" target="_blank"><img src="${v_thumb}" class="video-thumb" alt="Thumbnail"></a>
@@ -592,13 +635,13 @@ def generate_index():
                 <span class="v-channel">${v_channel}</span>
                 <h1 class="v-title">${v_title}</h1>
                 <div class="v-actions">
-                    <span class="timestamp">更新于: ${now_str}</span>
+                    <span class="timestamp">更新於: ${now_str}</span>
                     <a href="${v_url}" target="_blank" class="btn-play">▶ 原片</a>
                 </div>
             </div>
         </div>
         <div class="chat-container">
-            ${comments_html ? comments_html : '<div class="empty-state">暂无高价值长评论。</div>'}
+            ${comments_html ? comments_html : '<div class="empty-state">暫無高價值長評論。</div>'}
         </div>
     </div>
 </body>
@@ -608,26 +651,25 @@ def generate_index():
 </body>
 </html>"""
     
-    # 替换变量，避免使用 f-string 破坏 JS 代码中的花括号
     html_template = html_template.replace('REPLACEME_JSON_DATA', json_data)
     
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首页日历 WebApp (含前端抓取模块) 已更新！")
+    print("🚀 首頁日曆 WebApp (含動態無縫更新模塊) 已更新！")
 
 def main():
     if not API_KEY:
-        print("❌ 警告：未配置 YOUTUBE_API_KEY，跳过后端抓取。")
+        print("❌ 警告：未配置 YOUTUBE_API_KEY，跳過後端抓取。")
         generate_index()
         return
         
-    print("🎬 开始抓取每日热门视频...")
+    print("🎬 開始抓取每日熱門視頻...")
     daily_data = {}
     
     for cat in CATEGORIES:
         cat_name = cat["name"]
         cat_id = cat["id"]
-        print(f"  正在抓取版块: {cat_name}")
+        print(f"  正在抓取版塊: {cat_name}")
         
         videos_info = []
         videos = fetch_category_videos(cat_id)
