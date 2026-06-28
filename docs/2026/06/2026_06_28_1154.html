@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MANY YEARS LATER as he fa...</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root { --bg: #fcfcfc; --surface: #ffffff; --text: #2c3e50; --border: #ecf0f1; --accent: #2980b9; --highlight: #fef9e7; }
+        body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; margin: 0; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; }
+        .nav-back { margin-bottom: 25px; }
+        .nav-back a { text-decoration: none; color: white; background: var(--text); padding: 8px 18px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .card-header { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #95a5a6; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; font-weight: bold;}
+        
+        /* Markdown 老师批改样式 */
+        .markdown-body { font-size: 1.05rem; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: var(--accent); margin-top: 25px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
+        .markdown-body h3 { font-size: 1.2rem; }
+        .markdown-body p { margin-top: 0; margin-bottom: 15px; }
+        .markdown-body blockquote { margin: 0 0 15px 0; padding: 12px 18px; background: var(--highlight); border-left: 5px solid #f1c40f; color: #5c4d22; font-family: Georgia, serif; font-size: 1.15rem; border-radius: 0 8px 8px 0; }
+        .markdown-body hr { border: 0; border-top: 1px dashed #bdc3c7; margin: 25px 0; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 0.95rem; }
+        .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 12px; text-align: left; }
+        .markdown-body th { background: #f8f9fa; color: var(--accent); }
+        
+        /* 交互反馈 */
+        .view-mode.editing { display: none; }
+        .edit-mode { display: none; }
+        .edit-mode.active { display: block; }
+        .edit-textarea { width: 100%; min-height: 150px; padding: 15px; font-family: monospace; font-size: 15px; border: 2px dashed var(--accent); border-radius: 10px; box-sizing: border-box; resize: vertical; margin-bottom: 15px; background: #fafafa; }
+        .edit-textarea:focus { outline: none; background: #fff; border-style: solid; }
+        .save-btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .cancel-btn { background: #ecf0f1; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px; font-size: 1rem; font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-back"><a href="../../index.html">🔙 返回矩阵枢纽</a></div>
+        
+        <script id="raw-original" type="text/markdown">MANY YEARS LATER as he faced the firing squad, Colonel Aureliano Buendía was to remember that distant afternoon when his father took him to discover ice.
+
+英语教学式讲解</script>
+        <script id="raw-analysis" type="text/markdown">MANY YEARS LATER as he faced the firing squad, Colonel Aureliano Buendía was to remember that distant afternoon when his father took him to discover ice.
+
+英语教学式讲解</script>
+
+        <div class="card" id="block-original">
+            <div class="card-header"><span>📖 原始文本 (Original)</span> <span style="font-size:0.75rem; background:#eee; padding:2px 8px; border-radius:10px;">双指轻触编辑</span></div>
+            <div id="view-original" class="view-mode markdown-body"></div>
+            <div id="edit-original" class="edit-mode">
+                <textarea class="edit-textarea" id="textarea-original"></textarea>
+                <button class="save-btn" onclick="saveEdit('original')">💾 保存修改并推送</button>
+                <button class="cancel-btn" onclick="cancelEdit('original')">取消</button>
+            </div>
+        </div>
+
+        <div class="card" id="block-analysis">
+            <div class="card-header"><span>🔬 深度解构 (Analysis)</span> <span style="font-size:0.75rem; background:#eee; padding:2px 8px; border-radius:10px;">双指轻触编辑</span></div>
+            <div id="view-analysis" class="view-mode markdown-body"></div>
+            <div id="edit-analysis" class="edit-mode">
+                <textarea class="edit-textarea" id="textarea-analysis"></textarea>
+                <button class="save-btn" onclick="saveEdit('analysis')">💾 保存修改并推送</button>
+                <button class="cancel-btn" onclick="cancelEdit('analysis')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function renderAll() {
+            document.getElementById('view-original').innerHTML = marked.parse(document.getElementById('raw-original').textContent);
+            document.getElementById('view-analysis').innerHTML = marked.parse(document.getElementById('raw-analysis').textContent);
+        }
+        renderAll();
+
+        ['original', 'analysis'].forEach(target => {
+            const viewBlock = document.getElementById('view-' + target);
+            viewBlock.addEventListener('dblclick', () => triggerEdit(target));
+            let lastTap = 0;
+            viewBlock.addEventListener('touchstart', e => {
+                if (e.touches.length === 2) triggerEdit(target); 
+            });
+        });
+
+        function triggerEdit(target) {
+            document.getElementById('view-' + target).classList.add('editing');
+            const editBlock = document.getElementById('edit-' + target);
+            editBlock.classList.add('active');
+            document.getElementById('textarea-' + target).value = document.getElementById('raw-' + target).textContent;
+        }
+
+        function cancelEdit(target) {
+            document.getElementById('view-' + target).classList.remove('editing');
+            document.getElementById('edit-' + target).classList.remove('active');
+        }
+
+        async function saveEdit(target) {
+            const btn = document.querySelector('#edit-' + target + ' .save-btn');
+            btn.innerText = '📡 正在同步...';
+            
+            const newContent = document.getElementById('textarea-' + target).value;
+            document.getElementById('raw-' + target).textContent = newContent;
+            
+            const newHtml = "<!DOCTYPE html>
+<html lang="zh-CN">
+" + document.documentElement.innerHTML + "
+</html>";
+            
+            const token = localStorage.getItem('GH_TOKEN');
+            const owner = localStorage.getItem('GH_OWNER');
+            const repo = localStorage.getItem('GH_REPO');
+            
+            if(!token) {
+                alert("未检测到 GitHub Token。请回主页枢纽点击齿轮配置！");
+                btn.innerText = '💾 保存修改并推送';
+                return;
+            }
+
+            const path = window.location.pathname;
+            const fileRelPath = path.substring(path.indexOf('docs/'));
+            
+            try {
+                const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                const fileData = await getRes.json();
+                
+                const putRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `Update ${target} analysis via UI`,
+                        content: btoa(unescape(encodeURIComponent(newHtml))),
+                        sha: fileData.sha
+                    })
+                });
+                
+                if(putRes.ok) {
+                    cancelEdit(target);
+                    renderAll();
+                    alert("✅ 云端同步成功！页面已刷新。");
+                } else {
+                    alert("同步失败，请检查网络或 Token 权限。");
+                }
+            } catch(e) {
+                alert("发生错误: " + e.message);
+            }
+            btn.innerText = '💾 保存修改并推送';
+        }
+    </script>
+</body>
+</html>
