@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>111+$+</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root { --bg: #fcfcfc; --surface: #ffffff; --text: #2c3e50; --border: #ecf0f1; --accent: #2980b9; --highlight: #fef9e7; }
+        body { font-family: -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; margin: 0; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; padding-bottom: 50px;}
+        .nav-back { margin-bottom: 25px; }
+        .nav-back a { text-decoration: none; color: white; background: var(--text); padding: 8px 18px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+        .card-header { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #95a5a6; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; font-weight: bold;}
+        
+        .markdown-body { font-size: 1.05rem; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: var(--accent); margin-top: 25px; margin-bottom: 12px; font-weight: 700; border-bottom: 1px dashed #eee; padding-bottom: 5px; }
+        .markdown-body h3 { font-size: 1.2rem; }
+        .markdown-body p { margin-top: 0; margin-bottom: 15px; }
+        .markdown-body blockquote { margin: 0 0 15px 0; padding: 12px 18px; background: var(--highlight); border-left: 5px solid #f1c40f; color: #5c4d22; font-family: Georgia, serif; font-size: 1.15rem; border-radius: 0 8px 8px 0; }
+        .markdown-body hr { border: 0; border-top: 1px dashed #bdc3c7; margin: 25px 0; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 0.95rem; }
+        .markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 12px; text-align: left; }
+        .markdown-body th { background: #f8f9fa; color: var(--accent); }
+        
+        /* 编辑模式交互 */
+        .view-mode.editing { display: none; }
+        .edit-mode { display: none; }
+        .edit-mode.active { display: block; }
+        .edit-textarea { width: 100%; min-height: 250px; padding: 15px; font-family: monospace; font-size: 15px; border: 2px dashed var(--accent); border-radius: 10px; box-sizing: border-box; resize: vertical; margin-bottom: 15px; background: #fafafa; }
+        .edit-textarea:focus { outline: none; background: #fff; border-style: solid; }
+        .save-btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .cancel-btn { background: #ecf0f1; color: #333; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px; font-size: 1rem; font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-back"><a href="../../index.html">🔙 返回矩阵枢纽</a></div>
+        
+        <script id="page-data" type="application/base64">eyJ0aXRsZSI6IjExMSskKyIsIm9yaWciOiIxMTErJCsiLCJhbmFsIjoi5YaZ5ZOq5Lqb5L2gIn0=</script>
+
+        <div class="card" id="block-original">
+            <div class="card-header">📖 原始文本 (Original)</div>
+            <div id="view-original" class="view-mode markdown-body" style="white-space: pre-wrap; font-family: Georgia, serif; font-size: 1.15rem; line-height: 1.8; color: #34495e;"></div>
+        </div>
+
+        <div class="card" id="block-analysis">
+            <div class="card-header">🔬 深度解构 (Analysis)</div>
+            <div id="view-analysis" class="view-mode markdown-body"></div>
+            <div id="edit-analysis" class="edit-mode">
+                <textarea class="edit-textarea" id="textarea-analysis"></textarea>
+                <div style="display:flex;">
+                    <button class="save-btn" onclick="saveEdit()">💾 保存并更新云端</button>
+                    <button class="cancel-btn" onclick="cancelEdit()">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 解析底层数据
+        let pageData = JSON.parse(decodeURIComponent(escape(atob(document.getElementById('page-data').textContent))));
+
+        function renderAll() {
+            document.getElementById('view-original').textContent = pageData.orig;
+            if (typeof marked !== 'undefined') {
+                document.getElementById('view-analysis').innerHTML = marked.parse(pageData.anal);
+            } else {
+                document.getElementById('view-analysis').innerHTML = "<pre style='white-space:pre-wrap;'>" + pageData.anal + "</pre>";
+            }
+        }
+        window.onload = renderAll;
+
+        // 仅对分析区块赋予双指/双击魔法
+        const viewBlock = document.getElementById('view-analysis');
+        const editBlock = document.getElementById('edit-analysis');
+        const textarea = document.getElementById('textarea-analysis');
+
+        viewBlock.addEventListener('dblclick', triggerEdit);
+        let lastTap = 0;
+        viewBlock.addEventListener('touchstart', e => {
+            if (e.touches.length === 2) triggerEdit(); 
+        });
+
+        function triggerEdit() {
+            viewBlock.classList.add('editing');
+            editBlock.classList.add('active');
+            textarea.value = pageData.anal;
+        }
+
+        function cancelEdit() {
+            viewBlock.classList.remove('editing');
+            editBlock.classList.remove('active');
+        }
+
+        async function saveEdit() {
+            const btn = document.querySelector('.save-btn');
+            btn.innerText = '📡 正在覆盖...';
+            
+            // 提取新内容并更新底层保险箱
+            pageData.anal = textarea.value;
+            document.getElementById('page-data').textContent = btoa(unescape(encodeURIComponent(JSON.stringify(pageData))));
+            
+            // 恢复视图
+            cancelEdit();
+            renderAll();
+            
+            const newHtml = "<!DOCTYPE html>
+<html lang="zh-CN">
+" + document.documentElement.innerHTML + "
+</html>";
+            
+            const token = localStorage.getItem('GH_TOKEN');
+            const owner = localStorage.getItem('GH_OWNER');
+            const repo = localStorage.getItem('GH_REPO');
+            
+            if(!token) {
+                alert("未检测到 GitHub Token。请回主页枢纽点击齿轮配置！");
+                btn.innerText = '💾 保存并更新云端';
+                return;
+            }
+
+            const path = window.location.pathname;
+            const fileRelPath = path.substring(path.indexOf('docs/'));
+            
+            try {
+                const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                const fileData = await getRes.json();
+                
+                const putRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `Update analysis via UI`,
+                        content: btoa(unescape(encodeURIComponent(newHtml))),
+                        sha: fileData.sha
+                    })
+                });
+                
+                if(putRes.ok) {
+                    alert("✅ 云端同步成功！页面已被永久更新。");
+                } else {
+                    const err = await putRes.json();
+                    alert("同步失败: " + err.message);
+                }
+            } catch(e) {
+                alert("发生错误: " + e.message);
+            }
+            btn.innerText = '💾 保存并更新云端';
+        }
+    </script>
+</body>
+</html>
