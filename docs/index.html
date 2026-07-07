@@ -110,7 +110,7 @@
     <script>
         // ================= 1. 日曆渲染邏輯 =================
         // 注意：這裡加入了 DATA_START 和 DATA_END 標記，用於前端無損替換
-        const archiveData = /*DATA_START*/{"2026": {"7": {"6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:47", "path": "2026/6/2026_6_28_1147.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:35", "path": "2026/6/2026_6_28_1135.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:34", "path": "2026/6/2026_6_28_1134.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"7": {"7": [{"time": "21:39", "path": "2026/7/2026_7_7_2139.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:47", "path": "2026/6/2026_6_28_1147.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:35", "path": "2026/6/2026_6_28_1135.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:34", "path": "2026/6/2026_6_28_1134.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
         const today = new Date();
         let currentYear = today.getFullYear();
         let currentMonth = today.getMonth() + 1;
@@ -126,10 +126,27 @@
 
         function initSelects() {
             yearSelect.innerHTML = '';
-            const years = Object.keys(archiveData).map(Number).sort((a, b) => b - a);
-            if (!years.includes(currentYear)) years.unshift(currentYear);
-            years.forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); });
-            yearSelect.value = selectedYear; monthSelect.value = selectedMonth;
+            
+            // 獲取歷史已有數據的年份
+            const dataYears = Object.keys(archiveData).map(Number);
+            const allYears = new Set([...dataYears]);
+            
+            // 延長50年：以當前年份為基準，涵蓋過去5年和未來50年
+            for(let i = -5; i <= 50; i++) {
+                allYears.add(currentYear + i);
+            }
+            
+            // 降序排列
+            const years = Array.from(allYears).sort((a, b) => b - a);
+            
+            years.forEach(y => { 
+                const opt = document.createElement('option'); 
+                opt.value = y; 
+                opt.textContent = y + ' 年'; 
+                yearSelect.appendChild(opt); 
+            });
+            yearSelect.value = selectedYear; 
+            monthSelect.value = selectedMonth;
         }
 
         function renderCalendar(year, month) {
@@ -368,11 +385,12 @@
                     loadingBar.style.width = '65%';
                     const htmlOutput = generateBaseHTMLString(video, comments);
 
-                    // 2. 計算時間和路徑
+                    // 2. 計算時間和路徑 (與當前日曆選中的日期綁定，而不是默認今天)
                     const now = new Date();
-                    const year = now.getFullYear().toString();
-                    const month = (now.getMonth() + 1).toString();
-                    const day = now.getDate().toString();
+                    const year = selectedYear.toString();
+                    const month = selectedMonth.toString();
+                    const day = selectedDay.toString();
+                    // 文件名中的時間戳依舊保留抓取的真實時間，避免重名
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
@@ -405,7 +423,7 @@
                     const oldJsonStr = idxContent.substring(dataStart, dataEnd);
                     const archiveObj = JSON.parse(oldJsonStr);
 
-                    // 在解析出的對象中插入新視頻記錄
+                    // 在解析出的對象中插入新視頻記錄 (綁定到日曆選中日期)
                     if (!archiveObj[year]) archiveObj[year] = {};
                     if (!archiveObj[year][month]) archiveObj[year][month] = {};
                     if (!archiveObj[year][month][day]) archiveObj[year][month][day] = [];
@@ -438,16 +456,13 @@
                     if (!archiveData[year][month][day]) archiveData[year][month][day] = [];
                     archiveData[year][month][day].unshift(newItem);
 
-                    selectedYear = parseInt(year);
-                    selectedMonth = parseInt(month);
-                    selectedDay = parseInt(day);
-                    
+                    // 確保畫面重新渲染（選中的日期不變）
                     initSelects();
                     renderCalendar(selectedYear, selectedMonth);
                     renderNews(selectedYear, selectedMonth, selectedDay);
 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！新視頻已無縫添加到今天的日曆中。');
+                    alert('🎉 抓取成功！新視頻已無縫添加到您選中的日期中。');
                     ytUrlInput.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
