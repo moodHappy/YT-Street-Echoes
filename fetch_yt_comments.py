@@ -192,24 +192,29 @@ def generate_index():
     if os.path.exists(BASE_DIR):
         years = [d for d in os.listdir(BASE_DIR) if d.isdigit()]
         for year in years:
-            archive_data[year] = {}
             months = [d for d in os.listdir(os.path.join(BASE_DIR, year)) if d.isdigit()]
             for month in months:
-                archive_data[year][month] = {}
                 files = sorted([f for f in os.listdir(os.path.join(BASE_DIR, year, month)) if f.endswith('.html')], reverse=True)
                 for file in files:
                     try:
+                        # 从文件名中严格剥离准确时间，防止由于文件夹错乱导致的内容绑定错误
                         parts = file.replace(".html", "").split('_')
                         if len(parts) >= 4:
-                            day = parts[2]
+                            f_year = str(int(parts[0]))
+                            f_month = str(int(parts[1]))
+                            f_day = str(int(parts[2]))
                             time_str = f"{parts[3][:2]}:{parts[3][2:4]}"
                             file_path = f"{year}/{month}/{file}"
                             title = "📌 单集精读" if "custom" in file else "📌 每周热播"
 
-                            if day not in archive_data[year][month]:
-                                archive_data[year][month][day] = []
+                            if f_year not in archive_data:
+                                archive_data[f_year] = {}
+                            if f_month not in archive_data[f_year]:
+                                archive_data[f_year][f_month] = {}
+                            if f_day not in archive_data[f_year][f_month]:
+                                archive_data[f_year][f_month][f_day] = []
 
-                            archive_data[year][month][day].append({
+                            archive_data[f_year][f_month][f_day].append({
                                 "time": time_str,
                                 "path": file_path,
                                 "title": title
@@ -330,7 +335,6 @@ def generate_index():
 
     <script>
         // ================= 1. 日曆渲染邏輯 =================
-        // 注意：這裡加入了 DATA_START 和 DATA_END 標記，用於前端無損替換
         const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
         let currentYear = today.getFullYear();
@@ -348,16 +352,13 @@ def generate_index():
         function initSelects() {
             yearSelect.innerHTML = '';
             
-            // 獲取歷史已有數據的年份
             const dataYears = Object.keys(archiveData).map(Number);
             const allYears = new Set([...dataYears]);
             
-            // 延長50年：以當前年份為基準，涵蓋過去5年和未來50年
             for(let i = -5; i <= 50; i++) {
                 allYears.add(currentYear + i);
             }
             
-            // 降序排列
             const years = Array.from(allYears).sort((a, b) => b - a);
             
             years.forEach(y => { 
@@ -423,7 +424,7 @@ def generate_index():
                     delBtn.onclick = async (e) => {
                         e.preventDefault();
                         if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                            const pathToDelete = news.path; // 保存要删除的文件相对路径
+                            const pathToDelete = news.path;
                             dayData.splice(index, 1);
                             if (dayData.length === 0) delete archiveData[year][month][day];
                             renderCalendar(year, month);
@@ -451,7 +452,6 @@ def generate_index():
             try {
                 loadingBar.style.width = '10%';
                 
-                // 第一步：彻底删除 GitHub 上的 HTML 实体文件
                 const targetFilePath = `docs/${fileRelPath}`;
                 const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
                     headers: { 'Authorization': `token ${ghToken}` }
@@ -471,7 +471,6 @@ def generate_index():
                 
                 loadingBar.style.width = '50%';
 
-                // 第二步：更新 index.html 以抹除索引
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                     headers: { 'Authorization': `token ${ghToken}` }
                 });
@@ -503,7 +502,6 @@ def generate_index():
             }
         }
 
-        // 双击/连击日历区域切换删除模式
         let lastTap = 0;
         const calWrapper = document.querySelector('.calendar-wrapper');
         calWrapper.addEventListener('click', function(e) {
@@ -518,11 +516,52 @@ def generate_index():
             lastTap = currentTime;
         });
 
-        yearSelect.addEventListener('change', (e) => { selectedYear = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
-        monthSelect.addEventListener('change', (e) => { selectedMonth = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
-        document.getElementById('prevBtn').addEventListener('click', () => { selectedMonth--; if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; yearSelect.value = selectedYear; } monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); });
-        document.getElementById('nextBtn').addEventListener('click', () => { selectedMonth++; if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; yearSelect.value = selectedYear; } monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); });
-        document.getElementById('todayBtn').addEventListener('click', () => { selectedYear = today.getFullYear(); selectedMonth = today.getMonth() + 1; selectedDay = today.getDate(); yearSelect.value = selectedYear; monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); renderNews(selectedYear, selectedMonth, selectedDay); });
+        // ================= 修正區：年份和月份切換時同步渲染底部新聞列表 =================
+        yearSelect.addEventListener('change', (e) => { 
+            selectedYear = parseInt(e.target.value); 
+            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
+            if(selectedDay > maxDay) selectedDay = maxDay;
+            renderCalendar(selectedYear, selectedMonth);
+            renderNews(selectedYear, selectedMonth, selectedDay);
+        });
+        
+        monthSelect.addEventListener('change', (e) => { 
+            selectedMonth = parseInt(e.target.value); 
+            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
+            if(selectedDay > maxDay) selectedDay = maxDay;
+            renderCalendar(selectedYear, selectedMonth);
+            renderNews(selectedYear, selectedMonth, selectedDay);
+        });
+        
+        document.getElementById('prevBtn').addEventListener('click', () => { 
+            selectedMonth--; 
+            if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; yearSelect.value = selectedYear; } 
+            monthSelect.value = selectedMonth; 
+            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
+            if(selectedDay > maxDay) selectedDay = maxDay;
+            renderCalendar(selectedYear, selectedMonth); 
+            renderNews(selectedYear, selectedMonth, selectedDay);
+        });
+        
+        document.getElementById('nextBtn').addEventListener('click', () => { 
+            selectedMonth++; 
+            if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; yearSelect.value = selectedYear; } 
+            monthSelect.value = selectedMonth; 
+            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
+            if(selectedDay > maxDay) selectedDay = maxDay;
+            renderCalendar(selectedYear, selectedMonth); 
+            renderNews(selectedYear, selectedMonth, selectedDay);
+        });
+        
+        document.getElementById('todayBtn').addEventListener('click', () => { 
+            selectedYear = today.getFullYear(); 
+            selectedMonth = today.getMonth() + 1; 
+            selectedDay = today.getDate(); 
+            yearSelect.value = selectedYear; 
+            monthSelect.value = selectedMonth; 
+            renderCalendar(selectedYear, selectedMonth); 
+            renderNews(selectedYear, selectedMonth, selectedDay); 
+        });
 
         initSelects(); renderCalendar(currentYear, currentMonth); renderNews(currentYear, currentMonth, selectedDay);
 
@@ -575,7 +614,6 @@ def generate_index():
                 ytUrlInput.disabled = true;
 
                 try {
-                    // 1. 獲取視頻與評論數據
                     loadingBar.style.width = '30%';
                     const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${ytKey}`);
                     const vData = await vRes.json();
@@ -606,12 +644,10 @@ def generate_index():
                     loadingBar.style.width = '65%';
                     const htmlOutput = generateBaseHTMLString(video, comments);
 
-                    // 2. 計算時間和路徑 (與當前日曆選中的日期綁定，而不是默認今天)
                     const now = new Date();
                     const year = selectedYear.toString();
                     const month = selectedMonth.toString();
                     const day = selectedDay.toString();
-                    // 文件名中的時間戳依舊保留抓取的真實時間，避免重名
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
@@ -619,7 +655,6 @@ def generate_index():
                     const fileRelPath = `${year}/${month}/${filename}`;
                     const fileApiPath = `docs/${year}/${month}/${filename}`;
 
-                    // 3. 提交單集 HTML 檔案到 GitHub
                     loadingBar.style.width = '75%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${fileApiPath}`, {
                         method: 'PUT',
@@ -630,7 +665,6 @@ def generate_index():
                         })
                     });
 
-                    // 4. 下載並更新 index.html 中的日曆數據 (確保 GitHub 雲端也更新)
                     loadingBar.style.width = '85%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         headers: { 'Authorization': `token ${ghToken}` }
@@ -644,7 +678,6 @@ def generate_index():
                     const oldJsonStr = idxContent.substring(dataStart, dataEnd);
                     const archiveObj = JSON.parse(oldJsonStr);
 
-                    // 在解析出的對象中插入新視頻記錄 (綁定到日曆選中日期)
                     if (!archiveObj[year]) archiveObj[year] = {};
                     if (!archiveObj[year][month]) archiveObj[year][month] = {};
                     if (!archiveObj[year][month][day]) archiveObj[year][month][day] = [];
@@ -656,7 +689,6 @@ def generate_index():
                     };
                     archiveObj[year][month][day].unshift(newItem);
 
-                    // 寫回並推送到 GitHub
                     const newJsonStr = JSON.stringify(archiveObj);
                     const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
                     
@@ -671,13 +703,11 @@ def generate_index():
                         })
                     });
 
-                    // 5. 劫持本地內存，無刷新直接顯示在畫面上！
                     if (!archiveData[year]) archiveData[year] = {};
                     if (!archiveData[year][month]) archiveData[year][month] = {};
                     if (!archiveData[year][month][day]) archiveData[year][month][day] = [];
                     archiveData[year][month][day].unshift(newItem);
 
-                    // 確保畫面重新渲染（選中的日期不變）
                     initSelects();
                     renderCalendar(selectedYear, selectedMonth);
                     renderNews(selectedYear, selectedMonth, selectedDay);
@@ -696,7 +726,6 @@ def generate_index():
             }
         });
 
-        // 基礎版排版生成器 (JS版本)
         function generateBaseHTMLString(video, comments) {
             const snippet = video.snippet;
             const v_title = snippet.title;
