@@ -282,14 +282,14 @@ def generate_index():
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘貼 YouTube 鏈接，回車生成..." autocomplete="off">
+        <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘贴 YouTube 链接，回车生成..." autocomplete="off">
         <button class="settings-btn" onclick="openSettings()">⚙️</button>
     </div>
 
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密鑰僅保存在您的瀏覽器本地，不會上傳到任何第三方服務器。</p>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，不会上传到任何第三方服务器。</p>
             <div class="form-group">
                 <label>YouTube API Key</label>
                 <input type="password" id="cfgYtKey" placeholder="AIzaSy...">
@@ -299,11 +299,11 @@ def generate_index():
                 <input type="password" id="cfgGhToken" placeholder="ghp_...">
             </div>
             <div class="form-group">
-                <label>GitHub 用戶名</label>
+                <label>GitHub 用户名</label>
                 <input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy">
             </div>
             <div class="form-group">
-                <label>GitHub 倉庫名</label>
+                <label>GitHub 仓库名</label>
                 <input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe">
             </div>
             <div class="modal-actions">
@@ -334,7 +334,7 @@ def generate_index():
     </div>
 
     <script>
-        // ================= 1. 日曆渲染邏輯 =================
+        // ================= 1. 日历渲染逻辑 =================
         const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
         let currentYear = today.getFullYear();
@@ -372,71 +372,89 @@ def generate_index():
         }
 
         function renderCalendar(year, month) {
-            daysGrid.innerHTML = '';
-            const firstDay = new Date(year, month - 1, 1).getDay();
-            const startDay = firstDay === 0 ? 7 : firstDay;
-            const daysInMonth = new Date(year, month, 0).getDate();
-            
-            for (let i = 1; i < startDay; i++) { const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); }
-            
-            const monthData = (archiveData[year] && archiveData[year][month]) ? archiveData[year][month] : {};
-            
-            for (let day = 1; day <= daysInMonth; day++) {
-                const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
-                const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
+            try {
+                daysGrid.innerHTML = '';
+                const firstDay = new Date(year, month - 1, 1).getDay();
+                const startDay = firstDay === 0 ? 7 : firstDay;
+                const daysInMonth = new Date(year, month, 0).getDate();
                 
-                if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
-                if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
-                if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
+                for (let i = 1; i < startDay; i++) { const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); }
                 
-                cell.addEventListener('click', () => { selectedYear = year; selectedMonth = month; selectedDay = day; renderCalendar(year, month); renderNews(year, month, day); });
-                daysGrid.appendChild(cell);
+                // 修复：安全的链式获取机制，避免引发字典短路异常导致界面状态残留
+                let monthData = {};
+                if (archiveData && archiveData[year] && archiveData[year][month]) {
+                    monthData = archiveData[year][month];
+                }
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
+                    const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
+                    
+                    if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
+                    if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
+                    if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
+                    
+                    cell.addEventListener('click', () => { selectedYear = year; selectedMonth = month; selectedDay = day; renderCalendar(year, month); renderNews(year, month, day); });
+                    daysGrid.appendChild(cell);
+                }
+            } catch (err) {
+                console.error("日历渲染异常:", err);
             }
         }
 
         function renderNews(year, month, day) {
-            newsList.innerHTML = '';
-            const monthData = (archiveData[year] && archiveData[year][month]) ? archiveData[year][month] : null;
-            const dayData = monthData ? monthData[day] : null;
-            
-            if (dayData && dayData.length > 0) {
-                dayData.forEach((news, index) => {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'news-item-wrapper';
+            try {
+                // 确保在任何情况下首先被清空，绝对杜绝内容因为短路Bug而残留页面
+                newsList.innerHTML = '';
+                
+                // 修复：极其健壮的深层对象安全提取，防止未定义的月份或者年份导致取值失败
+                let dayData = null;
+                if (archiveData && archiveData[year] && archiveData[year][month] && archiveData[year][month][day]) {
+                    dayData = archiveData[year][month][day];
+                }
+                
+                if (dayData && Array.isArray(dayData) && dayData.length > 0) {
+                    dayData.forEach((news, index) => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'news-item-wrapper';
 
-                    const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                    
-                    let displayTitle = news.title;
-                    if (displayTitle.includes("全美 Top 50 深度阅读")) {
-                        displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
-                    }
-                    
-                    const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
-                    
-                    a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
-                    wrapper.appendChild(a);
-
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-btn';
-                    delBtn.innerHTML = '🗑️';
-                    if (window.deleteMode) delBtn.style.display = 'block';
-                    
-                    delBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                            const pathToDelete = news.path;
-                            dayData.splice(index, 1);
-                            if (dayData.length === 0) delete archiveData[year][month][day];
-                            renderCalendar(year, month);
-                            renderNews(year, month, day);
-                            await syncDeleteToGithub(pathToDelete);
+                        const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
+                        
+                        let displayTitle = news.title;
+                        if (displayTitle.includes("全美 Top 50 深度阅读")) {
+                            displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
                         }
-                    };
-                    wrapper.appendChild(delBtn);
+                        
+                        const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
+                        
+                        a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
+                        wrapper.appendChild(a);
 
-                    newsList.appendChild(wrapper);
-                });
-            } else {
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'delete-btn';
+                        delBtn.innerHTML = '🗑️';
+                        if (window.deleteMode) delBtn.style.display = 'block';
+                        
+                        delBtn.onclick = async (e) => {
+                            e.preventDefault();
+                            if(confirm('确认删除此条目并同步删除云端文件吗？')) {
+                                const pathToDelete = news.path;
+                                dayData.splice(index, 1);
+                                if (dayData.length === 0) delete archiveData[year][month][day];
+                                renderCalendar(year, month);
+                                renderNews(year, month, day);
+                                await syncDeleteToGithub(pathToDelete);
+                            }
+                        };
+                        wrapper.appendChild(delBtn);
+
+                        newsList.appendChild(wrapper);
+                    });
+                } else {
+                    newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
+                }
+            } catch (err) {
+                console.error("内容列表渲染异常:", err);
                 newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
             }
         }
@@ -516,9 +534,9 @@ def generate_index():
             lastTap = currentTime;
         });
 
-        // ================= 修正區：年份和月份切換時同步渲染底部新聞列表 =================
+        // ================= 修正区：年份和月份切换时同步渲染底部新闻列表 =================
         yearSelect.addEventListener('change', (e) => { 
-            selectedYear = parseInt(e.target.value); 
+            selectedYear = parseInt(e.target.value, 10); 
             let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
             if(selectedDay > maxDay) selectedDay = maxDay;
             renderCalendar(selectedYear, selectedMonth);
@@ -526,7 +544,7 @@ def generate_index():
         });
         
         monthSelect.addEventListener('change', (e) => { 
-            selectedMonth = parseInt(e.target.value); 
+            selectedMonth = parseInt(e.target.value, 10); 
             let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
             if(selectedDay > maxDay) selectedDay = maxDay;
             renderCalendar(selectedYear, selectedMonth);
@@ -565,7 +583,7 @@ def generate_index():
 
         initSelects(); renderCalendar(currentYear, currentMonth); renderNews(currentYear, currentMonth, selectedDay);
 
-        // ================= 2. 純前端無縫抓取與秒更新邏輯 =================
+        // ================= 2. 纯前端无缝抓取与秒更新逻辑 =================
         const ytUrlInput = document.getElementById('ytUrlInput');
         const modal = document.getElementById('settingsModal');
         const loadingBar = document.getElementById('loadingBar');
@@ -597,7 +615,7 @@ def generate_index():
             if (e.key === 'Enter') {
                 const url = ytUrlInput.value.trim();
                 const videoId = extractVideoId(url);
-                if (!videoId) return alert('❌ 無法識別的 YouTube 鏈接');
+                if (!videoId) return alert('❌ 无法识别的 YouTube 链接');
                 
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
@@ -605,7 +623,7 @@ def generate_index():
                 const ghRepo = localStorage.getItem('GH_REPO');
                 
                 if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
-                    alert('請先點擊齒輪⚙️配置 API Keys！');
+                    alert('请先点击齿轮⚙️配置 API Keys！');
                     openSettings();
                     return;
                 }
@@ -617,7 +635,7 @@ def generate_index():
                     loadingBar.style.width = '30%';
                     const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${ytKey}`);
                     const vData = await vRes.json();
-                    if (!vData.items || vData.items.length === 0) throw new Error("視頻不存在或無權限");
+                    if (!vData.items || vData.items.length === 0) throw new Error("视频不存在或无权限");
                     const video = vData.items[0];
 
                     loadingBar.style.width = '50%';
@@ -642,7 +660,10 @@ def generate_index():
                     comments = comments.slice(0, 30);
 
                     loadingBar.style.width = '65%';
-                    const htmlOutput = generateBaseHTMLString(video, comments);
+                    
+                    // 修复隐患：强制将用户“此刻选中的日历日期”作为生成的视频HTML文件内容的基准时间戳
+                    // 这样就不会出现“存入了过去的某天，但点开页面却显示的是今天的时间”这一错位Bug
+                    const htmlOutput = generateBaseHTMLString(video, comments, selectedYear, selectedMonth, selectedDay);
 
                     const now = new Date();
                     const year = selectedYear.toString();
@@ -713,12 +734,12 @@ def generate_index():
                     renderNews(selectedYear, selectedMonth, selectedDay);
 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！新視頻已無縫添加到您選中的日期中。');
+                    alert('🎉 抓取成功！新视频已无缝添加到您选中的日期中。');
                     ytUrlInput.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message);
+                    alert('❌ 操作失败: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
                     ytUrlInput.disabled = false;
@@ -726,14 +747,16 @@ def generate_index():
             }
         });
 
-        function generateBaseHTMLString(video, comments) {
+        // 修复：强绑定选择年份月日生成文件的时间戳，避免"内容对不上年份"的Bug
+        function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
             const snippet = video.snippet;
             const v_title = snippet.title;
             const v_channel = snippet.channelTitle;
             const v_thumb = (snippet.thumbnails.maxres || snippet.thumbnails.high || snippet.thumbnails.default).url;
             const v_url = `https://www.youtube.com/watch?v=${video.id}`;
             const d = new Date();
-            const now_str = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            // 在此固定使用选中的年月日作为归档界面的时间戳
+            const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
             let comments_html = "";
             for (let c of comments) {
@@ -785,6 +808,7 @@ def generate_index():
 <body>
     <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
     <div class="container">
+        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')}</h2>
         <div class="video-card">
             <a href="${v_url}" target="_blank"><img src="${v_thumb}" class="video-thumb" alt="Thumbnail"></a>
             <div class="video-info">
