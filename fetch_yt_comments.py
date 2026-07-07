@@ -283,10 +283,9 @@ def generate_index():
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
         <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘贴 YouTube 链接，回车生成..." autocomplete="off">
-        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
-    <!-- 模态框部分省略...不变 -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
@@ -296,25 +295,24 @@ def generate_index():
             <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
             <div class="form-group"><label>GitHub 仓库名</label><input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe"></div>
             <div class="modal-actions">
-                <button class="btn btn-cancel" onclick="closeSettings()">取消</button>
-                <button class="btn btn-save" onclick="saveSettings()">保存配置</button>
+                <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
+                <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
             </div>
         </div>
     </div>
 
     <div class="container">
         <div class="controls">
-            <!-- 【重磅修复】所有事件统统改为 onclick / onchange 內联挂载，彻底摆脱手机浏览器缓存和事件脱离的玄学 Bug -->
-            <button class="control-btn" onclick="window.handleAction('prev')">&lt;</button>
-            <select class="select-box" id="yearSelect" onchange="window.handleAction('year')"></select>
-            <select class="select-box" id="monthSelect" onchange="window.handleAction('month')">
+            <button class="control-btn" id="prevBtn">&lt;</button>
+            <select class="select-box" id="yearSelect"></select>
+            <select class="select-box" id="monthSelect">
                 <option value="1">01月</option><option value="2">02月</option><option value="3">03月</option>
                 <option value="4">04月</option><option value="5">05月</option><option value="6">06月</option>
                 <option value="7">07月</option><option value="8">08月</option><option value="9">09月</option>
                 <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
             </select>
-            <button class="control-btn" onclick="window.handleAction('next')">&gt;</button>
-            <button class="control-btn" onclick="window.handleAction('today')">今天</button>
+            <button class="control-btn" id="nextBtn">&gt;</button>
+            <button class="control-btn" id="todayBtn">今天</button>
         </div>
         <div class="calendar-wrapper">
             <div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
@@ -324,23 +322,23 @@ def generate_index():
     </div>
 
     <script>
-        // ================= 1. 日历渲染与状态管理 =================
+        // ================= 1. 终极修复：单向状态机管控 =================
         const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
-        let currentYear = today.getFullYear();
-        let currentMonth = today.getMonth() + 1;
-        let selectedDay = today.getDate();
-        let selectedYear = currentYear;
-        let selectedMonth = currentMonth;
         
-        window.deleteMode = false;
+        // 所有状态必须严格通过 AppState 对象流转
+        const AppState = {
+            year: today.getFullYear(),
+            month: today.getMonth() + 1,
+            day: today.getDate(),
+            deleteMode: false
+        };
 
         function initSelects() {
             const yearSelect = document.getElementById('yearSelect');
             yearSelect.innerHTML = '';
-            const dataYears = Object.keys(archiveData).map(Number);
-            const allYears = new Set([...dataYears]);
-            for(let i = -5; i <= 50; i++) allYears.add(currentYear + i);
+            const allYears = new Set(Object.keys(archiveData).map(Number));
+            for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
             
             Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
                 const opt = document.createElement('option'); 
@@ -348,198 +346,225 @@ def generate_index():
                 opt.textContent = y + ' 年'; 
                 yearSelect.appendChild(opt); 
             });
-            yearSelect.value = selectedYear; 
-            document.getElementById('monthSelect').value = selectedMonth;
         }
 
-        window.renderCalendar = function(year, month) {
+        // ================= 2. 暴力重绘引擎 (解决旧内容残留核心) =================
+        function forceRender() {
+            // 修正跨月导致的无效日期（例如切到2月，防止31号残留）
+            const maxDay = new Date(AppState.year, AppState.month, 0).getDate();
+            if (AppState.day > maxDay) AppState.day = maxDay;
+
+            // 强制同步下拉菜单 UI
+            document.getElementById('yearSelect').value = AppState.year;
+            document.getElementById('monthSelect').value = AppState.month;
+
             const daysGrid = document.getElementById('daysGrid');
-            daysGrid.innerHTML = '';
-            const firstDay = new Date(year, month - 1, 1).getDay();
-            const startDay = firstDay === 0 ? 7 : firstDay;
-            const daysInMonth = new Date(year, month, 0).getDate();
-            
-            for (let i = 1; i < startDay; i++) { 
-                const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); 
-            }
-            
-            let monthData = {};
-            if (archiveData && archiveData[year] && archiveData[year][month]) {
-                monthData = archiveData[year][month];
-            }
-            
-            for (let day = 1; day <= daysInMonth; day++) {
-                const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
-                const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
-                
-                if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
-                if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
-                if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
-                
-                cell.onclick = () => { 
-                    selectedYear = year; selectedMonth = month; selectedDay = day; 
-                    window.renderCalendar(year, month); 
-                    window.renderNews(year, month, day); 
-                };
-                daysGrid.appendChild(cell);
-            }
-        };
-
-        window.renderNews = function(year, month, day) {
             const newsList = document.getElementById('newsList');
-            // 绝对强行清屏，没有任何商量余地
+
+            // 彻底抹除旧节点，免疫原生 DOM 刷新失效的怪异问题
+            daysGrid.innerHTML = '';
             newsList.innerHTML = '';
-            
-            let dayData = null;
-            if (archiveData && archiveData[year] && archiveData[year][month] && archiveData[year][month][day]) {
-                dayData = archiveData[year][month][day];
-            }
-            
-            if (dayData && Array.isArray(dayData) && dayData.length > 0) {
-                dayData.forEach((news, index) => {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'news-item-wrapper';
 
-                    const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                    let displayTitle = news.title;
-                    if (displayTitle.includes("全美 Top 50 深度阅读")) displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
-                    const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
+            try {
+                // 渲染日历网格
+                const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
+                for (let i = 1; i < firstDay; i++) { 
+                    const emptyCell = document.createElement('div'); 
+                    emptyCell.className = 'day-cell empty'; 
+                    daysGrid.appendChild(emptyCell); 
+                }
+                
+                const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
+                
+                for (let day = 1; day <= maxDay; day++) {
+                    const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
+                    const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
                     
-                    a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
-                    wrapper.appendChild(a);
-
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-btn';
-                    delBtn.innerHTML = '🗑️';
-                    if (window.deleteMode) delBtn.style.display = 'block';
+                    if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
+                    if (AppState.year === today.getFullYear() && AppState.month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
+                    if (day === AppState.day) cell.classList.add('selected');
                     
-                    delBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                            const pathToDelete = news.path;
-                            dayData.splice(index, 1);
-                            if (dayData.length === 0) delete archiveData[year][month][day];
-                            window.renderCalendar(year, month);
-                            window.renderNews(year, month, day);
-                            await window.syncDeleteToGithub(pathToDelete);
-                        }
+                    cell.onclick = () => { 
+                        AppState.day = day; 
+                        forceRender(); 
                     };
-                    wrapper.appendChild(delBtn);
-                    newsList.appendChild(wrapper);
-                });
-            } else {
+                    daysGrid.appendChild(cell);
+                }
+            } catch (err) { console.error("日历渲染异常:", err); }
+
+            try {
+                // 渲染新闻列表（安全链式查找）
+                let dayData = null;
+                if (archiveData[AppState.year] && archiveData[AppState.year][AppState.month] && archiveData[AppState.year][AppState.month][AppState.day]) {
+                    dayData = archiveData[AppState.year][AppState.month][AppState.day];
+                }
+                
+                if (dayData && Array.isArray(dayData) && dayData.length > 0) {
+                    dayData.forEach((news, index) => {
+                        const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
+                        const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
+                        
+                        let displayTitle = news.title.replace("全美 Top 50 深度阅读", "📌 每周热播");
+                        const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
+                        
+                        a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
+                        wrapper.appendChild(a);
+
+                        const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '🗑️';
+                        if (AppState.deleteMode) delBtn.style.display = 'block';
+                        
+                        delBtn.onclick = async (e) => {
+                            e.preventDefault();
+                            if(confirm('确认删除此条目并同步删除云端文件吗？')) {
+                                const pathToDelete = news.path;
+                                dayData.splice(index, 1);
+                                if (dayData.length === 0) delete archiveData[AppState.year][AppState.month][AppState.day];
+                                forceRender(); // 强刷状态
+                                await syncDeleteToGithub(pathToDelete);
+                            }
+                        };
+                        wrapper.appendChild(delBtn);
+                        newsList.appendChild(wrapper);
+                    });
+                } else {
+                    newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
+                }
+            } catch (err) { 
+                console.error("内容列表渲染异常:", err); 
                 newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
             }
-        };
+        }
 
-        // ================= 2. 交互枢纽总控中心 =================
-        // 这个总控函数彻底切断了过去事件绑定的隐患
-        window.handleAction = function(actionType) {
-            const yearSelect = document.getElementById('yearSelect');
-            const monthSelect = document.getElementById('monthSelect');
-            
-            if (actionType === 'year') {
-                selectedYear = parseInt(yearSelect.value, 10);
-            } else if (actionType === 'month') {
-                selectedMonth = parseInt(monthSelect.value, 10);
-            } else if (actionType === 'prev') {
-                selectedMonth--; 
-                if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; }
-            } else if (actionType === 'next') {
-                selectedMonth++; 
-                if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; }
-            } else if (actionType === 'today') {
-                selectedYear = today.getFullYear(); 
-                selectedMonth = today.getMonth() + 1; 
-                selectedDay = today.getDate();
-            }
+        // ================= 3. 完全分离的事件绑定器 =================
+        // 所有事件严格注入，杜绝一切由于渲染导致的监听脱落
+        document.getElementById('yearSelect').addEventListener('change', (e) => {
+            AppState.year = parseInt(e.target.value, 10);
+            forceRender();
+        });
+        
+        document.getElementById('monthSelect').addEventListener('change', (e) => {
+            AppState.month = parseInt(e.target.value, 10);
+            forceRender();
+        });
+        
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            AppState.month--; 
+            if (AppState.month < 1) { AppState.month = 12; AppState.year--; }
+            forceRender();
+        });
+        
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            AppState.month++; 
+            if (AppState.month > 12) { AppState.month = 1; AppState.year++; }
+            forceRender();
+        });
+        
+        document.getElementById('todayBtn').addEventListener('click', () => {
+            AppState.year = today.getFullYear(); 
+            AppState.month = today.getMonth() + 1; 
+            AppState.day = today.getDate();
+            forceRender();
+        });
 
-            yearSelect.value = selectedYear;
-            monthSelect.value = selectedMonth;
-
-            // 防止切换越界（比如从 7月31日 切到 6月，变成 6月31日）
-            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
-            if(selectedDay > maxDay) selectedDay = maxDay;
-            
-            // 每次操作后，强制同步重绘
-            window.renderCalendar(selectedYear, selectedMonth);
-            window.renderNews(selectedYear, selectedMonth, selectedDay);
-        };
-
-        // 长按呼出删除逻辑
         let lastTap = 0;
-        document.querySelector('.calendar-wrapper').addEventListener('click', function(e) {
+        document.querySelector('.calendar-wrapper').addEventListener('click', (e) => {
             const tapLength = new Date().getTime() - lastTap;
             if (tapLength < 500 && tapLength > 0) {
-                window.deleteMode = !window.deleteMode;
-                document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = window.deleteMode ? 'block' : 'none');
+                AppState.deleteMode = !AppState.deleteMode;
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = AppState.deleteMode ? 'block' : 'none');
                 e.preventDefault();
             }
             lastTap = new Date().getTime();
         });
 
-        // 页面初始化
-        initSelects(); 
-        window.renderCalendar(currentYear, currentMonth); 
-        window.renderNews(currentYear, currentMonth, selectedDay);
+        // 首次启动注入
+        initSelects();
+        forceRender();
 
-
-        // ================= 3. 远端 API 操作逻辑 (保持不变) =================
-        window.openSettings = function() {
+        // ================= 4. GitHub 交互模块 (与 DOM 解耦) =================
+        document.getElementById('openSettingsBtn').addEventListener('click', () => {
             document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
             document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
             document.getElementById('settingsModal').style.display = 'flex';
-        };
-        window.closeSettings = function() { document.getElementById('settingsModal').style.display = 'none'; };
-        window.saveSettings = function() {
+        });
+
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsModal').style.display = 'none';
+        });
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => {
             localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
-            window.closeSettings();
+            document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
-        };
+        });
 
-        window.syncDeleteToGithub = async function(fileRelPath) {
+        async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
             const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) return alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
+            if (!ghToken || !ghOwner || !ghRepo) {
+                alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
+                return;
+            }
             try {
                 const loadingBar = document.getElementById('loadingBar');
                 loadingBar.style.width = '10%';
+                
                 const targetFilePath = `docs/${fileRelPath}`;
-                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { headers: { 'Authorization': `token ${ghToken}` } });
+                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
+                    headers: { 'Authorization': `token ${ghToken}` }
+                });
+                
                 if (fileRes.ok) {
                     const fileData = await fileRes.json();
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
-                        method: 'DELETE', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        method: 'DELETE',
+                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: `Delete archived html file: ${fileRelPath}`, sha: fileData.sha })
                     });
                 }
+                
                 loadingBar.style.width = '50%';
-                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                    headers: { 'Authorization': `token ${ghToken}` }
+                });
                 const idxData = await idxRes.json();
                 const idxContent = decodeURIComponent(escape(atob(idxData.content)));
+
                 const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                 const dataEnd = idxContent.indexOf('/*DATA_END*/');
-                const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveData) + idxContent.substring(dataEnd);
-                
+                const newJsonStr = JSON.stringify(archiveData);
+                const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
+
                 loadingBar.style.width = '80%';
                 await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                    method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: `Update index.html after deleting file`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                    method: 'PUT',
+                    headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `Update index.html after deleting file`,
+                        content: btoa(unescape(encodeURIComponent(newIdxContent))),
+                        sha: idxData.sha
+                    })
                 });
+                
                 loadingBar.style.width = '100%';
                 setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) { console.error("Sync delete failed", e); alert('远端删除错误。'); loadingBar.style.width = '0%'; }
-        };
+            } catch(e) {
+                console.error("Sync delete failed", e);
+                alert('远端删除过程出现错误，请检查控制台。');
+                document.getElementById('loadingBar').style.width = '0%';
+            }
+        }
 
         function extractVideoId(url) {
             const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-            const match = url.match(regExp); return (match && match[2].length === 11) ? match[2] : null;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
         }
 
         document.getElementById('ytUrlInput').addEventListener('keypress', async function (e) {
@@ -552,7 +577,12 @@ def generate_index():
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
-                if (!ytKey || !ghToken || !ghOwner || !ghRepo) return window.openSettings();
+                
+                if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
+                    alert('请先点击齿轮⚙️配置 API Keys！');
+                    document.getElementById('settingsModal').style.display = 'flex';
+                    return;
+                }
 
                 const loadingBar = document.getElementById('loadingBar');
                 loadingBar.style.width = '10%';
@@ -575,8 +605,10 @@ def generate_index():
                             const text = snippet.textDisplay;
                             if (text.split(' ').length > 6 && !text.includes('href=')) {
                                 comments.push({
-                                    author: snippet.authorDisplayName, avatar: snippet.authorProfileImageUrl,
-                                    text: text.replace(/\b[A-Z]{2,}\b/g, match => match.toLowerCase()), likes: parseInt(snippet.likeCount || 0)
+                                    author: snippet.authorDisplayName,
+                                    avatar: snippet.authorProfileImageUrl,
+                                    text: text.replace(/\b[A-Z]{2,}\b/g, match => match.toLowerCase()),
+                                    likes: parseInt(snippet.likeCount || 0)
                                 });
                             }
                         }
@@ -584,24 +616,33 @@ def generate_index():
                     comments.sort((a, b) => b.likes - a.likes).slice(0, 30);
 
                     loadingBar.style.width = '65%';
-                    const htmlOutput = window.generateBaseHTMLString(video, comments, selectedYear, selectedMonth, selectedDay);
+                    // 安全传递 AppState 变量给子页面
+                    const htmlOutput = generateBaseHTMLString(video, comments, AppState.year, AppState.month, AppState.day);
 
                     const now = new Date();
-                    const yearStr = selectedYear.toString(), monthStr = selectedMonth.toString(), dayStr = selectedDay.toString();
+                    const yearStr = AppState.year.toString();
+                    const monthStr = AppState.month.toString();
+                    const dayStr = AppState.day.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
                     const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_custom.html`;
                     const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
-                    
+
                     loadingBar.style.width = '75%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
-                        method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Add custom video: ${video.snippet.title}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
+                        method: 'PUT',
+                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `Add custom video: ${video.snippet.title}`,
+                            content: btoa(unescape(encodeURIComponent(htmlOutput)))
+                        })
                     });
 
                     loadingBar.style.width = '85%';
-                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
+                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                        headers: { 'Authorization': `token ${ghToken}` }
+                    });
                     const idxData = await idxRes.json();
                     const idxContent = decodeURIComponent(escape(atob(idxData.content)));
 
@@ -613,15 +654,24 @@ def generate_index():
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    const newItem = { time: hhmmStr, path: fileRelPath, title: `📌 单集精读: ${video.snippet.title}` };
+                    const newItem = {
+                        time: hhmmStr,
+                        path: fileRelPath,
+                        title: `📌 单集精读: ${video.snippet.title}`
+                    };
                     archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
 
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     loadingBar.style.width = '95%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                        method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: `Update index.html calendar with custom video`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                        method: 'PUT',
+                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `Update index.html calendar with custom video`,
+                            content: btoa(unescape(encodeURIComponent(newIdxContent))),
+                            sha: idxData.sha
+                        })
                     });
 
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
@@ -629,18 +679,22 @@ def generate_index():
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
                     archiveData[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    window.renderCalendar(selectedYear, selectedMonth);
-                    window.renderNews(selectedYear, selectedMonth, selectedDay);
-
+                    forceRender(); // 完毕后统一强制同步渲染
                     loadingBar.style.width = '100%';
                     alert('🎉 抓取成功！新视频已无缝添加到您选中的日期中。');
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
-                } catch (err) { alert('❌ 操作失败: ' + err.message); loadingBar.style.width = '0%'; } finally { this.disabled = false; }
+
+                } catch (err) {
+                    alert('❌ 操作失败: ' + err.message);
+                    loadingBar.style.width = '0%';
+                } finally {
+                    this.disabled = false;
+                }
             }
         });
 
-        window.generateBaseHTMLString = function(video, comments, sYear, sMonth, sDay) {
+        function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
             const snippet = video.snippet;
             const v_title = snippet.title;
             const v_channel = snippet.channelTitle;
@@ -652,7 +706,17 @@ def generate_index():
             let comments_html = "";
             for (let c of comments) {
                 let likes_str = c.likes >= 1000 ? (c.likes / 1000).toFixed(1) + "k" : c.likes;
-                comments_html += `<div class="chat-message"><img src="${c.avatar}" class="avatar" loading="lazy"><div class="message-content"><div class="message-header"><span class="author">${c.author}</span><span class="likes">❤️ ${likes_str}</span></div><div class="bubble">${c.text}</div></div></div>`;
+                comments_html += `
+                <div class="chat-message">
+                    <img src="${c.avatar}" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">${c.author}</span>
+                            <span class="likes">❤️ ${likes_str}</span>
+                        </div>
+                        <div class="bubble">${c.text}</div>
+                    </div>
+                </div>`;
             }
 
             return `<!DOCTYPE html>
@@ -716,7 +780,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (含動態無縫更新模塊) 已更新！")
+    print("🚀 首頁日曆 WebApp (状态机管控隔离版) 已更新！")
 
 def main():
     if not API_KEY:
