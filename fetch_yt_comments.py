@@ -197,7 +197,7 @@ def generate_index():
                 files = sorted([f for f in os.listdir(os.path.join(BASE_DIR, year, month)) if f.endswith('.html')], reverse=True)
                 for file in files:
                     try:
-                        # 从文件名中严格剥离准确时间，防止由于文件夹错乱导致的内容绑定错误
+                        # 从文件名中严格剥离准确时间
                         parts = file.replace(".html", "").split('_')
                         if len(parts) >= 4:
                             f_year = str(int(parts[0]))
@@ -286,26 +286,15 @@ def generate_index():
         <button class="settings-btn" onclick="openSettings()">⚙️</button>
     </div>
 
+    <!-- 模态框部分省略...不变 -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
             <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，不会上传到任何第三方服务器。</p>
-            <div class="form-group">
-                <label>YouTube API Key</label>
-                <input type="password" id="cfgYtKey" placeholder="AIzaSy...">
-            </div>
-            <div class="form-group">
-                <label>GitHub Personal Access Token</label>
-                <input type="password" id="cfgGhToken" placeholder="ghp_...">
-            </div>
-            <div class="form-group">
-                <label>GitHub 用户名</label>
-                <input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy">
-            </div>
-            <div class="form-group">
-                <label>GitHub 仓库名</label>
-                <input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe">
-            </div>
+            <div class="form-group"><label>YouTube API Key</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
+            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
+            <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
+            <div class="form-group"><label>GitHub 仓库名</label><input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe"></div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" onclick="closeSettings()">取消</button>
                 <button class="btn btn-save" onclick="saveSettings()">保存配置</button>
@@ -315,16 +304,17 @@ def generate_index():
 
     <div class="container">
         <div class="controls">
-            <button class="control-btn" id="prevBtn">&lt;</button>
-            <select class="select-box" id="yearSelect"></select>
-            <select class="select-box" id="monthSelect">
+            <!-- 【重磅修复】所有事件统统改为 onclick / onchange 內联挂载，彻底摆脱手机浏览器缓存和事件脱离的玄学 Bug -->
+            <button class="control-btn" onclick="window.handleAction('prev')">&lt;</button>
+            <select class="select-box" id="yearSelect" onchange="window.handleAction('year')"></select>
+            <select class="select-box" id="monthSelect" onchange="window.handleAction('month')">
                 <option value="1">01月</option><option value="2">02月</option><option value="3">03月</option>
                 <option value="4">04月</option><option value="5">05月</option><option value="6">06月</option>
                 <option value="7">07月</option><option value="8">08月</option><option value="9">09月</option>
                 <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
             </select>
-            <button class="control-btn" id="nextBtn">&gt;</button>
-            <button class="control-btn" id="todayBtn">今天</button>
+            <button class="control-btn" onclick="window.handleAction('next')">&gt;</button>
+            <button class="control-btn" onclick="window.handleAction('today')">今天</button>
         </div>
         <div class="calendar-wrapper">
             <div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
@@ -334,7 +324,7 @@ def generate_index():
     </div>
 
     <script>
-        // ================= 1. 日历渲染逻辑 =================
+        // ================= 1. 日历渲染与状态管理 =================
         const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
         let currentYear = today.getFullYear();
@@ -344,276 +334,217 @@ def generate_index():
         let selectedMonth = currentMonth;
         
         window.deleteMode = false;
-        const yearSelect = document.getElementById('yearSelect');
-        const monthSelect = document.getElementById('monthSelect');
-        const daysGrid = document.getElementById('daysGrid');
-        const newsList = document.getElementById('newsList');
 
         function initSelects() {
+            const yearSelect = document.getElementById('yearSelect');
             yearSelect.innerHTML = '';
-            
             const dataYears = Object.keys(archiveData).map(Number);
             const allYears = new Set([...dataYears]);
+            for(let i = -5; i <= 50; i++) allYears.add(currentYear + i);
             
-            for(let i = -5; i <= 50; i++) {
-                allYears.add(currentYear + i);
-            }
-            
-            const years = Array.from(allYears).sort((a, b) => b - a);
-            
-            years.forEach(y => { 
+            Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
                 const opt = document.createElement('option'); 
                 opt.value = y; 
                 opt.textContent = y + ' 年'; 
                 yearSelect.appendChild(opt); 
             });
             yearSelect.value = selectedYear; 
-            monthSelect.value = selectedMonth;
+            document.getElementById('monthSelect').value = selectedMonth;
         }
 
-        function renderCalendar(year, month) {
-            try {
-                daysGrid.innerHTML = '';
-                const firstDay = new Date(year, month - 1, 1).getDay();
-                const startDay = firstDay === 0 ? 7 : firstDay;
-                const daysInMonth = new Date(year, month, 0).getDate();
-                
-                for (let i = 1; i < startDay; i++) { const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); }
-                
-                // 修复：安全的链式获取机制，避免引发字典短路异常导致界面状态残留
-                let monthData = {};
-                if (archiveData && archiveData[year] && archiveData[year][month]) {
-                    monthData = archiveData[year][month];
-                }
-                
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
-                    const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
-                    
-                    if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
-                    if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
-                    if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
-                    
-                    cell.addEventListener('click', () => { selectedYear = year; selectedMonth = month; selectedDay = day; renderCalendar(year, month); renderNews(year, month, day); });
-                    daysGrid.appendChild(cell);
-                }
-            } catch (err) {
-                console.error("日历渲染异常:", err);
+        window.renderCalendar = function(year, month) {
+            const daysGrid = document.getElementById('daysGrid');
+            daysGrid.innerHTML = '';
+            const firstDay = new Date(year, month - 1, 1).getDay();
+            const startDay = firstDay === 0 ? 7 : firstDay;
+            const daysInMonth = new Date(year, month, 0).getDate();
+            
+            for (let i = 1; i < startDay; i++) { 
+                const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); 
             }
-        }
-
-        function renderNews(year, month, day) {
-            try {
-                // 确保在任何情况下首先被清空，绝对杜绝内容因为短路Bug而残留页面
-                newsList.innerHTML = '';
+            
+            let monthData = {};
+            if (archiveData && archiveData[year] && archiveData[year][month]) {
+                monthData = archiveData[year][month];
+            }
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
+                const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
                 
-                // 修复：极其健壮的深层对象安全提取，防止未定义的月份或者年份导致取值失败
-                let dayData = null;
-                if (archiveData && archiveData[year] && archiveData[year][month] && archiveData[year][month][day]) {
-                    dayData = archiveData[year][month][day];
-                }
+                if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
+                if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
+                if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
                 
-                if (dayData && Array.isArray(dayData) && dayData.length > 0) {
-                    dayData.forEach((news, index) => {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'news-item-wrapper';
+                cell.onclick = () => { 
+                    selectedYear = year; selectedMonth = month; selectedDay = day; 
+                    window.renderCalendar(year, month); 
+                    window.renderNews(year, month, day); 
+                };
+                daysGrid.appendChild(cell);
+            }
+        };
 
-                        const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                        
-                        let displayTitle = news.title;
-                        if (displayTitle.includes("全美 Top 50 深度阅读")) {
-                            displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
+        window.renderNews = function(year, month, day) {
+            const newsList = document.getElementById('newsList');
+            // 绝对强行清屏，没有任何商量余地
+            newsList.innerHTML = '';
+            
+            let dayData = null;
+            if (archiveData && archiveData[year] && archiveData[year][month] && archiveData[year][month][day]) {
+                dayData = archiveData[year][month][day];
+            }
+            
+            if (dayData && Array.isArray(dayData) && dayData.length > 0) {
+                dayData.forEach((news, index) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'news-item-wrapper';
+
+                    const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
+                    let displayTitle = news.title;
+                    if (displayTitle.includes("全美 Top 50 深度阅读")) displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
+                    const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
+                    
+                    a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
+                    wrapper.appendChild(a);
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-btn';
+                    delBtn.innerHTML = '🗑️';
+                    if (window.deleteMode) delBtn.style.display = 'block';
+                    
+                    delBtn.onclick = async (e) => {
+                        e.preventDefault();
+                        if(confirm('确认删除此条目并同步删除云端文件吗？')) {
+                            const pathToDelete = news.path;
+                            dayData.splice(index, 1);
+                            if (dayData.length === 0) delete archiveData[year][month][day];
+                            window.renderCalendar(year, month);
+                            window.renderNews(year, month, day);
+                            await window.syncDeleteToGithub(pathToDelete);
                         }
-                        
-                        const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
-                        
-                        a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
-                        wrapper.appendChild(a);
-
-                        const delBtn = document.createElement('button');
-                        delBtn.className = 'delete-btn';
-                        delBtn.innerHTML = '🗑️';
-                        if (window.deleteMode) delBtn.style.display = 'block';
-                        
-                        delBtn.onclick = async (e) => {
-                            e.preventDefault();
-                            if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                                const pathToDelete = news.path;
-                                dayData.splice(index, 1);
-                                if (dayData.length === 0) delete archiveData[year][month][day];
-                                renderCalendar(year, month);
-                                renderNews(year, month, day);
-                                await syncDeleteToGithub(pathToDelete);
-                            }
-                        };
-                        wrapper.appendChild(delBtn);
-
-                        newsList.appendChild(wrapper);
-                    });
-                } else {
-                    newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
-                }
-            } catch (err) {
-                console.error("内容列表渲染异常:", err);
+                    };
+                    wrapper.appendChild(delBtn);
+                    newsList.appendChild(wrapper);
+                });
+            } else {
                 newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
             }
-        }
+        };
 
-        async function syncDeleteToGithub(fileRelPath) {
-            const ghToken = localStorage.getItem('GH_TOKEN');
-            const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) {
-                alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
-                return;
+        // ================= 2. 交互枢纽总控中心 =================
+        // 这个总控函数彻底切断了过去事件绑定的隐患
+        window.handleAction = function(actionType) {
+            const yearSelect = document.getElementById('yearSelect');
+            const monthSelect = document.getElementById('monthSelect');
+            
+            if (actionType === 'year') {
+                selectedYear = parseInt(yearSelect.value, 10);
+            } else if (actionType === 'month') {
+                selectedMonth = parseInt(monthSelect.value, 10);
+            } else if (actionType === 'prev') {
+                selectedMonth--; 
+                if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; }
+            } else if (actionType === 'next') {
+                selectedMonth++; 
+                if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; }
+            } else if (actionType === 'today') {
+                selectedYear = today.getFullYear(); 
+                selectedMonth = today.getMonth() + 1; 
+                selectedDay = today.getDate();
             }
-            try {
-                loadingBar.style.width = '10%';
-                
-                const targetFilePath = `docs/${fileRelPath}`;
-                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
-                    headers: { 'Authorization': `token ${ghToken}` }
-                });
-                
-                if (fileRes.ok) {
-                    const fileData = await fileRes.json();
-                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Delete archived html file: ${fileRelPath}`,
-                            sha: fileData.sha
-                        })
-                    });
-                }
-                
-                loadingBar.style.width = '50%';
 
-                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                    headers: { 'Authorization': `token ${ghToken}` }
-                });
-                const idxData = await idxRes.json();
-                const idxContent = decodeURIComponent(escape(atob(idxData.content)));
+            yearSelect.value = selectedYear;
+            monthSelect.value = selectedMonth;
 
-                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
-                const dataEnd = idxContent.indexOf('/*DATA_END*/');
-                const newJsonStr = JSON.stringify(archiveData);
-                const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
+            // 防止切换越界（比如从 7月31日 切到 6月，变成 6月31日）
+            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
+            if(selectedDay > maxDay) selectedDay = maxDay;
+            
+            // 每次操作后，强制同步重绘
+            window.renderCalendar(selectedYear, selectedMonth);
+            window.renderNews(selectedYear, selectedMonth, selectedDay);
+        };
 
-                loadingBar.style.width = '80%';
-                await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: `Update index.html after deleting file`,
-                        content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                        sha: idxData.sha
-                    })
-                });
-                
-                loadingBar.style.width = '100%';
-                setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) {
-                console.error("Sync delete failed", e);
-                alert('远端删除过程出现错误，请检查控制台。');
-                loadingBar.style.width = '0%';
-            }
-        }
-
+        // 长按呼出删除逻辑
         let lastTap = 0;
-        const calWrapper = document.querySelector('.calendar-wrapper');
-        calWrapper.addEventListener('click', function(e) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
+        document.querySelector('.calendar-wrapper').addEventListener('click', function(e) {
+            const tapLength = new Date().getTime() - lastTap;
             if (tapLength < 500 && tapLength > 0) {
                 window.deleteMode = !window.deleteMode;
-                const btns = document.querySelectorAll('.delete-btn');
-                btns.forEach(btn => btn.style.display = window.deleteMode ? 'block' : 'none');
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = window.deleteMode ? 'block' : 'none');
                 e.preventDefault();
             }
-            lastTap = currentTime;
+            lastTap = new Date().getTime();
         });
 
-        // ================= 修正区：年份和月份切换时同步渲染底部新闻列表 =================
-        yearSelect.addEventListener('change', (e) => { 
-            selectedYear = parseInt(e.target.value, 10); 
-            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
-            if(selectedDay > maxDay) selectedDay = maxDay;
-            renderCalendar(selectedYear, selectedMonth);
-            renderNews(selectedYear, selectedMonth, selectedDay);
-        });
-        
-        monthSelect.addEventListener('change', (e) => { 
-            selectedMonth = parseInt(e.target.value, 10); 
-            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
-            if(selectedDay > maxDay) selectedDay = maxDay;
-            renderCalendar(selectedYear, selectedMonth);
-            renderNews(selectedYear, selectedMonth, selectedDay);
-        });
-        
-        document.getElementById('prevBtn').addEventListener('click', () => { 
-            selectedMonth--; 
-            if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; yearSelect.value = selectedYear; } 
-            monthSelect.value = selectedMonth; 
-            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
-            if(selectedDay > maxDay) selectedDay = maxDay;
-            renderCalendar(selectedYear, selectedMonth); 
-            renderNews(selectedYear, selectedMonth, selectedDay);
-        });
-        
-        document.getElementById('nextBtn').addEventListener('click', () => { 
-            selectedMonth++; 
-            if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; yearSelect.value = selectedYear; } 
-            monthSelect.value = selectedMonth; 
-            let maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
-            if(selectedDay > maxDay) selectedDay = maxDay;
-            renderCalendar(selectedYear, selectedMonth); 
-            renderNews(selectedYear, selectedMonth, selectedDay);
-        });
-        
-        document.getElementById('todayBtn').addEventListener('click', () => { 
-            selectedYear = today.getFullYear(); 
-            selectedMonth = today.getMonth() + 1; 
-            selectedDay = today.getDate(); 
-            yearSelect.value = selectedYear; 
-            monthSelect.value = selectedMonth; 
-            renderCalendar(selectedYear, selectedMonth); 
-            renderNews(selectedYear, selectedMonth, selectedDay); 
-        });
+        // 页面初始化
+        initSelects(); 
+        window.renderCalendar(currentYear, currentMonth); 
+        window.renderNews(currentYear, currentMonth, selectedDay);
 
-        initSelects(); renderCalendar(currentYear, currentMonth); renderNews(currentYear, currentMonth, selectedDay);
 
-        // ================= 2. 纯前端无缝抓取与秒更新逻辑 =================
-        const ytUrlInput = document.getElementById('ytUrlInput');
-        const modal = document.getElementById('settingsModal');
-        const loadingBar = document.getElementById('loadingBar');
-
-        function openSettings() {
+        // ================= 3. 远端 API 操作逻辑 (保持不变) =================
+        window.openSettings = function() {
             document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
             document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
-            modal.style.display = 'flex';
-        }
-        function closeSettings() { modal.style.display = 'none'; }
-        function saveSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+        };
+        window.closeSettings = function() { document.getElementById('settingsModal').style.display = 'none'; };
+        window.saveSettings = function() {
             localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
             localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
-            closeSettings();
+            window.closeSettings();
             alert('配置已本地保存！');
-        }
+        };
+
+        window.syncDeleteToGithub = async function(fileRelPath) {
+            const ghToken = localStorage.getItem('GH_TOKEN');
+            const ghOwner = localStorage.getItem('GH_OWNER');
+            const ghRepo = localStorage.getItem('GH_REPO');
+            if (!ghToken || !ghOwner || !ghRepo) return alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
+            try {
+                const loadingBar = document.getElementById('loadingBar');
+                loadingBar.style.width = '10%';
+                const targetFilePath = `docs/${fileRelPath}`;
+                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { headers: { 'Authorization': `token ${ghToken}` } });
+                if (fileRes.ok) {
+                    const fileData = await fileRes.json();
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
+                        method: 'DELETE', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: `Delete archived html file: ${fileRelPath}`, sha: fileData.sha })
+                    });
+                }
+                loadingBar.style.width = '50%';
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
+                const idxData = await idxRes.json();
+                const idxContent = decodeURIComponent(escape(atob(idxData.content)));
+                const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
+                const dataEnd = idxContent.indexOf('/*DATA_END*/');
+                const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveData) + idxContent.substring(dataEnd);
+                
+                loadingBar.style.width = '80%';
+                await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
+                    method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: `Update index.html after deleting file`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
+                });
+                loadingBar.style.width = '100%';
+                setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
+            } catch(e) { console.error("Sync delete failed", e); alert('远端删除错误。'); loadingBar.style.width = '0%'; }
+        };
 
         function extractVideoId(url) {
             const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[2].length === 11) ? match[2] : null;
+            const match = url.match(regExp); return (match && match[2].length === 11) ? match[2] : null;
         }
 
-        ytUrlInput.addEventListener('keypress', async function (e) {
+        document.getElementById('ytUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
-                const url = ytUrlInput.value.trim();
+                const url = this.value.trim();
                 const videoId = extractVideoId(url);
                 if (!videoId) return alert('❌ 无法识别的 YouTube 链接');
                 
@@ -621,15 +552,11 @@ def generate_index():
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
                 const ghRepo = localStorage.getItem('GH_REPO');
-                
-                if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
-                    alert('请先点击齿轮⚙️配置 API Keys！');
-                    openSettings();
-                    return;
-                }
+                if (!ytKey || !ghToken || !ghOwner || !ghRepo) return window.openSettings();
 
+                const loadingBar = document.getElementById('loadingBar');
                 loadingBar.style.width = '10%';
-                ytUrlInput.disabled = true;
+                this.disabled = true;
 
                 try {
                     loadingBar.style.width = '30%';
@@ -648,130 +575,84 @@ def generate_index():
                             const text = snippet.textDisplay;
                             if (text.split(' ').length > 6 && !text.includes('href=')) {
                                 comments.push({
-                                    author: snippet.authorDisplayName,
-                                    avatar: snippet.authorProfileImageUrl,
-                                    text: text.replace(/\b[A-Z]{2,}\b/g, match => match.toLowerCase()),
-                                    likes: parseInt(snippet.likeCount || 0)
+                                    author: snippet.authorDisplayName, avatar: snippet.authorProfileImageUrl,
+                                    text: text.replace(/\b[A-Z]{2,}\b/g, match => match.toLowerCase()), likes: parseInt(snippet.likeCount || 0)
                                 });
                             }
                         }
                     }
-                    comments.sort((a, b) => b.likes - a.likes);
-                    comments = comments.slice(0, 30);
+                    comments.sort((a, b) => b.likes - a.likes).slice(0, 30);
 
                     loadingBar.style.width = '65%';
-                    
-                    // 修复隐患：强制将用户“此刻选中的日历日期”作为生成的视频HTML文件内容的基准时间戳
-                    // 这样就不会出现“存入了过去的某天，但点开页面却显示的是今天的时间”这一错位Bug
-                    const htmlOutput = generateBaseHTMLString(video, comments, selectedYear, selectedMonth, selectedDay);
+                    const htmlOutput = window.generateBaseHTMLString(video, comments, selectedYear, selectedMonth, selectedDay);
 
                     const now = new Date();
-                    const year = selectedYear.toString();
-                    const month = selectedMonth.toString();
-                    const day = selectedDay.toString();
+                    const yearStr = selectedYear.toString(), monthStr = selectedMonth.toString(), dayStr = selectedDay.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
-                    const filename = `${year}_${month}_${day}_${hhmmFile}_custom.html`;
-                    const fileRelPath = `${year}/${month}/${filename}`;
-                    const fileApiPath = `docs/${year}/${month}/${filename}`;
-
+                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_custom.html`;
+                    const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
+                    
                     loadingBar.style.width = '75%';
-                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${fileApiPath}`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Add custom video: ${video.snippet.title}`,
-                            content: btoa(unescape(encodeURIComponent(htmlOutput)))
-                        })
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
+                        method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: `Add custom video: ${video.snippet.title}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
                     });
 
                     loadingBar.style.width = '85%';
-                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                        headers: { 'Authorization': `token ${ghToken}` }
-                    });
+                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
                     const idxData = await idxRes.json();
-                    const idxSha = idxData.sha;
                     const idxContent = decodeURIComponent(escape(atob(idxData.content)));
 
                     const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                     const dataEnd = idxContent.indexOf('/*DATA_END*/');
-                    const oldJsonStr = idxContent.substring(dataStart, dataEnd);
-                    const archiveObj = JSON.parse(oldJsonStr);
+                    const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
 
-                    if (!archiveObj[year]) archiveObj[year] = {};
-                    if (!archiveObj[year][month]) archiveObj[year][month] = {};
-                    if (!archiveObj[year][month][day]) archiveObj[year][month][day] = [];
+                    if (!archiveObj[yearStr]) archiveObj[yearStr] = {};
+                    if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
+                    if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    const newItem = {
-                        time: hhmmStr,
-                        path: fileRelPath,
-                        title: `📌 单集精读: ${video.snippet.title}`
-                    };
-                    archiveObj[year][month][day].unshift(newItem);
+                    const newItem = { time: hhmmStr, path: fileRelPath, title: `📌 单集精读: ${video.snippet.title}` };
+                    archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    const newJsonStr = JSON.stringify(archiveObj);
-                    const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
+                    const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     loadingBar.style.width = '95%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Update index.html calendar with custom video`,
-                            content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                            sha: idxSha
-                        })
+                        method: 'PUT', headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: `Update index.html calendar with custom video`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
 
-                    if (!archiveData[year]) archiveData[year] = {};
-                    if (!archiveData[year][month]) archiveData[year][month] = {};
-                    if (!archiveData[year][month][day]) archiveData[year][month][day] = [];
-                    archiveData[year][month][day].unshift(newItem);
+                    if (!archiveData[yearStr]) archiveData[yearStr] = {};
+                    if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
+                    if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
+                    archiveData[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    initSelects();
-                    renderCalendar(selectedYear, selectedMonth);
-                    renderNews(selectedYear, selectedMonth, selectedDay);
+                    window.renderCalendar(selectedYear, selectedMonth);
+                    window.renderNews(selectedYear, selectedMonth, selectedDay);
 
                     loadingBar.style.width = '100%';
                     alert('🎉 抓取成功！新视频已无缝添加到您选中的日期中。');
-                    ytUrlInput.value = '';
+                    this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
-
-                } catch (err) {
-                    alert('❌ 操作失败: ' + err.message);
-                    loadingBar.style.width = '0%';
-                } finally {
-                    ytUrlInput.disabled = false;
-                }
+                } catch (err) { alert('❌ 操作失败: ' + err.message); loadingBar.style.width = '0%'; } finally { this.disabled = false; }
             }
         });
 
-        // 修复：强绑定选择年份月日生成文件的时间戳，避免"内容对不上年份"的Bug
-        function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
+        window.generateBaseHTMLString = function(video, comments, sYear, sMonth, sDay) {
             const snippet = video.snippet;
             const v_title = snippet.title;
             const v_channel = snippet.channelTitle;
             const v_thumb = (snippet.thumbnails.maxres || snippet.thumbnails.high || snippet.thumbnails.default).url;
             const v_url = `https://www.youtube.com/watch?v=${video.id}`;
             const d = new Date();
-            // 在此固定使用选中的年月日作为归档界面的时间戳
             const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
             let comments_html = "";
             for (let c of comments) {
                 let likes_str = c.likes >= 1000 ? (c.likes / 1000).toFixed(1) + "k" : c.likes;
-                comments_html += `
-                <div class="chat-message">
-                    <img src="${c.avatar}" class="avatar" alt="avatar" loading="lazy">
-                    <div class="message-content">
-                        <div class="message-header">
-                            <span class="author">${c.author}</span>
-                            <span class="likes">❤️ ${likes_str}</span>
-                        </div>
-                        <div class="bubble">${c.text}</div>
-                    </div>
-                </div>`;
+                comments_html += `<div class="chat-message"><img src="${c.avatar}" class="avatar" loading="lazy"><div class="message-content"><div class="message-header"><span class="author">${c.author}</span><span class="likes">❤️ ${likes_str}</span></div><div class="bubble">${c.text}</div></div></div>`;
             }
 
             return `<!DOCTYPE html>
