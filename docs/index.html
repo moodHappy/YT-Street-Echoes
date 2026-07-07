@@ -56,33 +56,21 @@
 <body>
     <div id="loadingBar"></div>
     <div class="manual-fetch-bar">
-        <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘貼 YouTube 鏈接，回車生成..." autocomplete="off">
-        <button class="settings-btn" onclick="openSettings()">⚙️</button>
+        <input type="text" id="ytUrlInput" class="fetch-input" placeholder="粘贴 YouTube 链接，回车生成..." autocomplete="off">
+        <button class="settings-btn" id="openSettingsBtn">⚙️</button>
     </div>
 
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密鑰僅保存在您的瀏覽器本地，不會上傳到任何第三方服務器。</p>
-            <div class="form-group">
-                <label>YouTube API Key</label>
-                <input type="password" id="cfgYtKey" placeholder="AIzaSy...">
-            </div>
-            <div class="form-group">
-                <label>GitHub Personal Access Token</label>
-                <input type="password" id="cfgGhToken" placeholder="ghp_...">
-            </div>
-            <div class="form-group">
-                <label>GitHub 用戶名</label>
-                <input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy">
-            </div>
-            <div class="form-group">
-                <label>GitHub 倉庫名</label>
-                <input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe">
-            </div>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，不会上传到任何第三方服务器。</p>
+            <div class="form-group"><label>YouTube API Key</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
+            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
+            <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
+            <div class="form-group"><label>GitHub 仓库名</label><input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe"></div>
             <div class="modal-actions">
-                <button class="btn btn-cancel" onclick="closeSettings()">取消</button>
-                <button class="btn btn-save" onclick="saveSettings()">保存配置</button>
+                <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
+                <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
             </div>
         </div>
     </div>
@@ -108,116 +96,186 @@
     </div>
 
     <script>
-        // ================= 1. 日曆渲染邏輯 =================
-        // 注意：這裡加入了 DATA_START 和 DATA_END 標記，用於前端無損替換
-        const archiveData = /*DATA_START*/{"2026":{"6":{"26":[{"time":"18:37","path":"2026/6/2026_6_26_1837_custom.html","title":"📌 单集精读"},{"time":"18:34","path":"2026/6/2026_6_26_1834.html","title":"📌 每周热播"}],"27":[{"time":"08:14","path":"2026/6/2026_6_27_0814_custom.html","title":"📌 单集精读"}],"28":[{"time":"11:47","path":"2026/6/2026_6_28_1147.html","title":"📌 每周热播"},{"time":"11:42","path":"2026/6/2026_6_28_1142.html","title":"📌 每周热播"},{"time":"11:35","path":"2026/6/2026_6_28_1135.html","title":"📌 每周热播"},{"time":"11:34","path":"2026/6/2026_6_28_1134.html","title":"📌 每周热播"}],"29":[{"time":"10:00","path":"2026/6/2026_6_29_1000.html","title":"📌 每周热播"},{"time":"09:38","path":"2026/6/2026_6_29_0938_custom.html","title":"📌 单集精读"}],"30":[{"time":"11:10","path":"2026/6/2026_6_30_1110_custom.html","title":"📌 单集精读"}]},"7":{"6":[{"time":"09:30","path":"2026/7/2026_7_6_0930.html","title":"📌 每周热播"}]}}}/*DATA_END*/;
+        // ================= 1. 终极修复：单向状态机管控 =================
+        const archiveData = /*DATA_START*/{"2026": {"7": {"8": [{"time": "00:39", "path": "2026/7/2026_7_8_0039.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:47", "path": "2026/6/2026_6_28_1147.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:35", "path": "2026/6/2026_6_28_1135.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:34", "path": "2026/6/2026_6_28_1134.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
         const today = new Date();
-        let currentYear = today.getFullYear();
-        let currentMonth = today.getMonth() + 1;
-        let selectedDay = today.getDate();
-        let selectedYear = currentYear;
-        let selectedMonth = currentMonth;
         
-        window.deleteMode = false;
-        const yearSelect = document.getElementById('yearSelect');
-        const monthSelect = document.getElementById('monthSelect');
-        const daysGrid = document.getElementById('daysGrid');
-        const newsList = document.getElementById('newsList');
+        // 所有状态必须严格通过 AppState 对象流转
+        const AppState = {
+            year: today.getFullYear(),
+            month: today.getMonth() + 1,
+            day: today.getDate(),
+            deleteMode: false
+        };
 
         function initSelects() {
+            const yearSelect = document.getElementById('yearSelect');
             yearSelect.innerHTML = '';
+            const allYears = new Set(Object.keys(archiveData).map(Number));
+            for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
             
-            // 獲取歷史已有數據的年份
-            const dataYears = Object.keys(archiveData).map(Number);
-            const allYears = new Set([...dataYears]);
-            
-            // 延長50年：以當前年份為基準，涵蓋過去5年和未來50年
-            for(let i = -5; i <= 50; i++) {
-                allYears.add(currentYear + i);
-            }
-            
-            // 降序排列
-            const years = Array.from(allYears).sort((a, b) => b - a);
-            
-            years.forEach(y => { 
+            Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
                 const opt = document.createElement('option'); 
                 opt.value = y; 
                 opt.textContent = y + ' 年'; 
                 yearSelect.appendChild(opt); 
             });
-            yearSelect.value = selectedYear; 
-            monthSelect.value = selectedMonth;
         }
 
-        function renderCalendar(year, month) {
+        // ================= 2. 暴力重绘引擎 (解决旧内容残留核心) =================
+        function forceRender() {
+            // 修正跨月导致的无效日期（例如切到2月，防止31号残留）
+            const maxDay = new Date(AppState.year, AppState.month, 0).getDate();
+            if (AppState.day > maxDay) AppState.day = maxDay;
+
+            // 强制同步下拉菜单 UI
+            document.getElementById('yearSelect').value = AppState.year;
+            document.getElementById('monthSelect').value = AppState.month;
+
+            const daysGrid = document.getElementById('daysGrid');
+            const newsList = document.getElementById('newsList');
+
+            // 彻底抹除旧节点，免疫原生 DOM 刷新失效的怪异问题
             daysGrid.innerHTML = '';
-            const firstDay = new Date(year, month - 1, 1).getDay();
-            const startDay = firstDay === 0 ? 7 : firstDay;
-            const daysInMonth = new Date(year, month, 0).getDate();
-            
-            for (let i = 1; i < startDay; i++) { const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); }
-            
-            const monthData = (archiveData[year] && archiveData[year][month]) ? archiveData[year][month] : {};
-            
-            for (let day = 1; day <= daysInMonth; day++) {
-                const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
-                const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
-                
-                if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
-                if (year === today.getFullYear() && month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
-                if (year === selectedYear && month === selectedMonth && day === selectedDay) cell.classList.add('selected');
-                
-                cell.addEventListener('click', () => { selectedYear = year; selectedMonth = month; selectedDay = day; renderCalendar(year, month); renderNews(year, month, day); });
-                daysGrid.appendChild(cell);
-            }
-        }
-
-        function renderNews(year, month, day) {
             newsList.innerHTML = '';
-            const monthData = (archiveData[year] && archiveData[year][month]) ? archiveData[year][month] : null;
-            const dayData = monthData ? monthData[day] : null;
-            
-            if (dayData && dayData.length > 0) {
-                dayData.forEach((news, index) => {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'news-item-wrapper';
 
-                    const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
+            try {
+                // 渲染日历网格
+                const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
+                for (let i = 1; i < firstDay; i++) { 
+                    const emptyCell = document.createElement('div'); 
+                    emptyCell.className = 'day-cell empty'; 
+                    daysGrid.appendChild(emptyCell); 
+                }
+                
+                const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
+                
+                for (let day = 1; day <= maxDay; day++) {
+                    const cell = document.createElement('div'); cell.className = 'day-cell'; cell.textContent = day;
+                    const dot = document.createElement('div'); dot.className = 'dot'; cell.appendChild(dot);
                     
-                    let displayTitle = news.title;
-                    if (displayTitle.includes("全美 Top 50 深度阅读")) {
-                        displayTitle = displayTitle.replace("全美 Top 50 深度阅读", "📌 每周热播");
-                    }
+                    if (monthData[day] && monthData[day].length > 0) cell.classList.add('has-news'); else cell.classList.add('no-news');
+                    if (AppState.year === today.getFullYear() && AppState.month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
+                    if (day === AppState.day) cell.classList.add('selected');
                     
-                    const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
-                    
-                    a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
-                    wrapper.appendChild(a);
-
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-btn';
-                    delBtn.innerHTML = '🗑️';
-                    if (window.deleteMode) delBtn.style.display = 'block';
-                    
-                    delBtn.onclick = async (e) => {
-                        e.preventDefault();
-                        if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                            const pathToDelete = news.path; // 保存要删除的文件相对路径
-                            dayData.splice(index, 1);
-                            if (dayData.length === 0) delete archiveData[year][month][day];
-                            renderCalendar(year, month);
-                            renderNews(year, month, day);
-                            await syncDeleteToGithub(pathToDelete);
-                        }
+                    cell.onclick = () => { 
+                        AppState.day = day; 
+                        forceRender(); 
                     };
-                    wrapper.appendChild(delBtn);
+                    daysGrid.appendChild(cell);
+                }
+            } catch (err) { console.error("日历渲染异常:", err); }
 
-                    newsList.appendChild(wrapper);
-                });
-            } else {
+            try {
+                // 渲染新闻列表（安全链式查找）
+                let dayData = null;
+                if (archiveData[AppState.year] && archiveData[AppState.year][AppState.month] && archiveData[AppState.year][AppState.month][AppState.day]) {
+                    dayData = archiveData[AppState.year][AppState.month][AppState.day];
+                }
+                
+                if (dayData && Array.isArray(dayData) && dayData.length > 0) {
+                    dayData.forEach((news, index) => {
+                        const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
+                        const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
+                        
+                        let displayTitle = news.title.replace("全美 Top 50 深度阅读", "📌 每周热播");
+                        const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
+                        
+                        a.innerHTML = `<span class="news-title" style="${titleStyle}">${displayTitle}</span>`;
+                        wrapper.appendChild(a);
+
+                        const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '🗑️';
+                        if (AppState.deleteMode) delBtn.style.display = 'block';
+                        
+                        delBtn.onclick = async (e) => {
+                            e.preventDefault();
+                            if(confirm('确认删除此条目并同步删除云端文件吗？')) {
+                                const pathToDelete = news.path;
+                                dayData.splice(index, 1);
+                                if (dayData.length === 0) delete archiveData[AppState.year][AppState.month][AppState.day];
+                                forceRender(); // 强刷状态
+                                await syncDeleteToGithub(pathToDelete);
+                            }
+                        };
+                        wrapper.appendChild(delBtn);
+                        newsList.appendChild(wrapper);
+                    });
+                } else {
+                    newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
+                }
+            } catch (err) { 
+                console.error("内容列表渲染异常:", err); 
                 newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
             }
         }
+
+        // ================= 3. 完全分离的事件绑定器 =================
+        // 所有事件严格注入，杜绝一切由于渲染导致的监听脱落
+        document.getElementById('yearSelect').addEventListener('change', (e) => {
+            AppState.year = parseInt(e.target.value, 10);
+            forceRender();
+        });
+        
+        document.getElementById('monthSelect').addEventListener('change', (e) => {
+            AppState.month = parseInt(e.target.value, 10);
+            forceRender();
+        });
+        
+        document.getElementById('prevBtn').addEventListener('click', () => {
+            AppState.month--; 
+            if (AppState.month < 1) { AppState.month = 12; AppState.year--; }
+            forceRender();
+        });
+        
+        document.getElementById('nextBtn').addEventListener('click', () => {
+            AppState.month++; 
+            if (AppState.month > 12) { AppState.month = 1; AppState.year++; }
+            forceRender();
+        });
+        
+        document.getElementById('todayBtn').addEventListener('click', () => {
+            AppState.year = today.getFullYear(); 
+            AppState.month = today.getMonth() + 1; 
+            AppState.day = today.getDate();
+            forceRender();
+        });
+
+        let lastTap = 0;
+        document.querySelector('.calendar-wrapper').addEventListener('click', (e) => {
+            const tapLength = new Date().getTime() - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                AppState.deleteMode = !AppState.deleteMode;
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.style.display = AppState.deleteMode ? 'block' : 'none');
+                e.preventDefault();
+            }
+            lastTap = new Date().getTime();
+        });
+
+        // 首次启动注入
+        initSelects();
+        forceRender();
+
+        // ================= 4. GitHub 交互模块 (与 DOM 解耦) =================
+        document.getElementById('openSettingsBtn').addEventListener('click', () => {
+            document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
+            document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
+            document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
+            document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
+            document.getElementById('settingsModal').style.display = 'flex';
+        });
+
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsModal').style.display = 'none';
+        });
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+            localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
+            localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
+            localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
+            localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
+            document.getElementById('settingsModal').style.display = 'none';
+            alert('配置已本地保存！');
+        });
 
         async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
@@ -228,9 +286,9 @@
                 return;
             }
             try {
+                const loadingBar = document.getElementById('loadingBar');
                 loadingBar.style.width = '10%';
                 
-                // 第一步：彻底删除 GitHub 上的 HTML 实体文件
                 const targetFilePath = `docs/${fileRelPath}`;
                 const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
                     headers: { 'Authorization': `token ${ghToken}` }
@@ -241,16 +299,11 @@
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
                         method: 'DELETE',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Delete archived html file: ${fileRelPath}`,
-                            sha: fileData.sha
-                        })
+                        body: JSON.stringify({ message: `Delete archived html file: ${fileRelPath}`, sha: fileData.sha })
                     });
                 }
                 
                 loadingBar.style.width = '50%';
-
-                // 第二步：更新 index.html 以抹除索引
                 const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                     headers: { 'Authorization': `token ${ghToken}` }
                 });
@@ -278,53 +331,8 @@
             } catch(e) {
                 console.error("Sync delete failed", e);
                 alert('远端删除过程出现错误，请检查控制台。');
-                loadingBar.style.width = '0%';
+                document.getElementById('loadingBar').style.width = '0%';
             }
-        }
-
-        // 双击/连击日历区域切换删除模式
-        let lastTap = 0;
-        const calWrapper = document.querySelector('.calendar-wrapper');
-        calWrapper.addEventListener('click', function(e) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 500 && tapLength > 0) {
-                window.deleteMode = !window.deleteMode;
-                const btns = document.querySelectorAll('.delete-btn');
-                btns.forEach(btn => btn.style.display = window.deleteMode ? 'block' : 'none');
-                e.preventDefault();
-            }
-            lastTap = currentTime;
-        });
-
-        yearSelect.addEventListener('change', (e) => { selectedYear = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
-        monthSelect.addEventListener('change', (e) => { selectedMonth = parseInt(e.target.value); renderCalendar(selectedYear, selectedMonth); });
-        document.getElementById('prevBtn').addEventListener('click', () => { selectedMonth--; if (selectedMonth < 1) { selectedMonth = 12; selectedYear--; yearSelect.value = selectedYear; } monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); });
-        document.getElementById('nextBtn').addEventListener('click', () => { selectedMonth++; if (selectedMonth > 12) { selectedMonth = 1; selectedYear++; yearSelect.value = selectedYear; } monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); });
-        document.getElementById('todayBtn').addEventListener('click', () => { selectedYear = today.getFullYear(); selectedMonth = today.getMonth() + 1; selectedDay = today.getDate(); yearSelect.value = selectedYear; monthSelect.value = selectedMonth; renderCalendar(selectedYear, selectedMonth); renderNews(selectedYear, selectedMonth, selectedDay); });
-
-        initSelects(); renderCalendar(currentYear, currentMonth); renderNews(currentYear, currentMonth, selectedDay);
-
-        // ================= 2. 純前端無縫抓取與秒更新邏輯 =================
-        const ytUrlInput = document.getElementById('ytUrlInput');
-        const modal = document.getElementById('settingsModal');
-        const loadingBar = document.getElementById('loadingBar');
-
-        function openSettings() {
-            document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
-            document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
-            document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
-            document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
-            modal.style.display = 'flex';
-        }
-        function closeSettings() { modal.style.display = 'none'; }
-        function saveSettings() {
-            localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
-            localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
-            localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
-            localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
-            closeSettings();
-            alert('配置已本地保存！');
         }
 
         function extractVideoId(url) {
@@ -333,11 +341,11 @@
             return (match && match[2].length === 11) ? match[2] : null;
         }
 
-        ytUrlInput.addEventListener('keypress', async function (e) {
+        document.getElementById('ytUrlInput').addEventListener('keypress', async function (e) {
             if (e.key === 'Enter') {
-                const url = ytUrlInput.value.trim();
+                const url = this.value.trim();
                 const videoId = extractVideoId(url);
-                if (!videoId) return alert('❌ 無法識別的 YouTube 鏈接');
+                if (!videoId) return alert('❌ 无法识别的 YouTube 链接');
                 
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
@@ -345,20 +353,20 @@
                 const ghRepo = localStorage.getItem('GH_REPO');
                 
                 if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
-                    alert('請先點擊齒輪⚙️配置 API Keys！');
-                    openSettings();
+                    alert('请先点击齿轮⚙️配置 API Keys！');
+                    document.getElementById('settingsModal').style.display = 'flex';
                     return;
                 }
 
+                const loadingBar = document.getElementById('loadingBar');
                 loadingBar.style.width = '10%';
-                ytUrlInput.disabled = true;
+                this.disabled = true;
 
                 try {
-                    // 1. 獲取視頻與評論數據
                     loadingBar.style.width = '30%';
                     const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${ytKey}`);
                     const vData = await vRes.json();
-                    if (!vData.items || vData.items.length === 0) throw new Error("視頻不存在或無權限");
+                    if (!vData.items || vData.items.length === 0) throw new Error("视频不存在或无权限");
                     const video = vData.items[0];
 
                     loadingBar.style.width = '50%';
@@ -379,28 +387,24 @@
                             }
                         }
                     }
-                    comments.sort((a, b) => b.likes - a.likes);
-                    comments = comments.slice(0, 30);
+                    comments.sort((a, b) => b.likes - a.likes).slice(0, 30);
 
                     loadingBar.style.width = '65%';
-                    const htmlOutput = generateBaseHTMLString(video, comments);
+                    // 安全传递 AppState 变量给子页面
+                    const htmlOutput = generateBaseHTMLString(video, comments, AppState.year, AppState.month, AppState.day);
 
-                    // 2. 計算時間和路徑 (與當前日曆選中的日期綁定，而不是默認今天)
                     const now = new Date();
-                    const year = selectedYear.toString();
-                    const month = selectedMonth.toString();
-                    const day = selectedDay.toString();
-                    // 文件名中的時間戳依舊保留抓取的真實時間，避免重名
+                    const yearStr = AppState.year.toString();
+                    const monthStr = AppState.month.toString();
+                    const dayStr = AppState.day.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
-                    const filename = `${year}_${month}_${day}_${hhmmFile}_custom.html`;
-                    const fileRelPath = `${year}/${month}/${filename}`;
-                    const fileApiPath = `docs/${year}/${month}/${filename}`;
+                    const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_custom.html`;
+                    const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
 
-                    // 3. 提交單集 HTML 檔案到 GitHub
                     loadingBar.style.width = '75%';
-                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${fileApiPath}`, {
+                    await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -409,35 +413,29 @@
                         })
                     });
 
-                    // 4. 下載並更新 index.html 中的日曆數據 (確保 GitHub 雲端也更新)
                     loadingBar.style.width = '85%';
                     const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         headers: { 'Authorization': `token ${ghToken}` }
                     });
                     const idxData = await idxRes.json();
-                    const idxSha = idxData.sha;
                     const idxContent = decodeURIComponent(escape(atob(idxData.content)));
 
                     const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                     const dataEnd = idxContent.indexOf('/*DATA_END*/');
-                    const oldJsonStr = idxContent.substring(dataStart, dataEnd);
-                    const archiveObj = JSON.parse(oldJsonStr);
+                    const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
 
-                    // 在解析出的對象中插入新視頻記錄 (綁定到日曆選中日期)
-                    if (!archiveObj[year]) archiveObj[year] = {};
-                    if (!archiveObj[year][month]) archiveObj[year][month] = {};
-                    if (!archiveObj[year][month][day]) archiveObj[year][month][day] = [];
+                    if (!archiveObj[yearStr]) archiveObj[yearStr] = {};
+                    if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
+                    if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
                     const newItem = {
                         time: hhmmStr,
                         path: fileRelPath,
                         title: `📌 单集精读: ${video.snippet.title}`
                     };
-                    archiveObj[year][month][day].unshift(newItem);
+                    archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    // 寫回並推送到 GitHub
-                    const newJsonStr = JSON.stringify(archiveObj);
-                    const newIdxContent = idxContent.substring(0, dataStart) + newJsonStr + idxContent.substring(dataEnd);
+                    const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     loadingBar.style.width = '95%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
@@ -446,44 +444,38 @@
                         body: JSON.stringify({
                             message: `Update index.html calendar with custom video`,
                             content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                            sha: idxSha
+                            sha: idxData.sha
                         })
                     });
 
-                    // 5. 劫持本地內存，無刷新直接顯示在畫面上！
-                    if (!archiveData[year]) archiveData[year] = {};
-                    if (!archiveData[year][month]) archiveData[year][month] = {};
-                    if (!archiveData[year][month][day]) archiveData[year][month][day] = [];
-                    archiveData[year][month][day].unshift(newItem);
+                    if (!archiveData[yearStr]) archiveData[yearStr] = {};
+                    if (!archiveData[yearStr][monthStr]) archiveData[yearStr][monthStr] = {};
+                    if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
+                    archiveData[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    // 確保畫面重新渲染（選中的日期不變）
-                    initSelects();
-                    renderCalendar(selectedYear, selectedMonth);
-                    renderNews(selectedYear, selectedMonth, selectedDay);
-
+                    forceRender(); // 完毕后统一强制同步渲染
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！新視頻已無縫添加到您選中的日期中。');
-                    ytUrlInput.value = '';
+                    alert('🎉 抓取成功！新视频已无缝添加到您选中的日期中。');
+                    this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
                 } catch (err) {
-                    alert('❌ 操作失敗: ' + err.message);
+                    alert('❌ 操作失败: ' + err.message);
                     loadingBar.style.width = '0%';
                 } finally {
-                    ytUrlInput.disabled = false;
+                    this.disabled = false;
                 }
             }
         });
 
-        // 基礎版排版生成器 (JS版本)
-        function generateBaseHTMLString(video, comments) {
+        function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
             const snippet = video.snippet;
             const v_title = snippet.title;
             const v_channel = snippet.channelTitle;
             const v_thumb = (snippet.thumbnails.maxres || snippet.thumbnails.high || snippet.thumbnails.default).url;
             const v_url = `https://www.youtube.com/watch?v=${video.id}`;
             const d = new Date();
-            const now_str = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
             let comments_html = "";
             for (let c of comments) {
@@ -535,6 +527,7 @@
 <body>
     <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
     <div class="container">
+        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')}</h2>
         <div class="video-card">
             <a href="${v_url}" target="_blank"><img src="${v_thumb}" class="video-thumb" alt="Thumbnail"></a>
             <div class="video-info">
