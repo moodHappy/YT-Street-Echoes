@@ -347,10 +347,27 @@ def generate_index():
 
         function initSelects() {
             yearSelect.innerHTML = '';
-            const years = Object.keys(archiveData).map(Number).sort((a, b) => b - a);
-            if (!years.includes(currentYear)) years.unshift(currentYear);
-            years.forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); });
-            yearSelect.value = selectedYear; monthSelect.value = selectedMonth;
+            
+            // 獲取歷史已有數據的年份
+            const dataYears = Object.keys(archiveData).map(Number);
+            const allYears = new Set([...dataYears]);
+            
+            // 延長50年：以當前年份為基準，涵蓋過去5年和未來50年
+            for(let i = -5; i <= 50; i++) {
+                allYears.add(currentYear + i);
+            }
+            
+            // 降序排列
+            const years = Array.from(allYears).sort((a, b) => b - a);
+            
+            years.forEach(y => { 
+                const opt = document.createElement('option'); 
+                opt.value = y; 
+                opt.textContent = y + ' 年'; 
+                yearSelect.appendChild(opt); 
+            });
+            yearSelect.value = selectedYear; 
+            monthSelect.value = selectedMonth;
         }
 
         function renderCalendar(year, month) {
@@ -589,11 +606,12 @@ def generate_index():
                     loadingBar.style.width = '65%';
                     const htmlOutput = generateBaseHTMLString(video, comments);
 
-                    // 2. 計算時間和路徑
+                    // 2. 計算時間和路徑 (與當前日曆選中的日期綁定，而不是默認今天)
                     const now = new Date();
-                    const year = now.getFullYear().toString();
-                    const month = (now.getMonth() + 1).toString();
-                    const day = now.getDate().toString();
+                    const year = selectedYear.toString();
+                    const month = selectedMonth.toString();
+                    const day = selectedDay.toString();
+                    // 文件名中的時間戳依舊保留抓取的真實時間，避免重名
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
                     
@@ -626,7 +644,7 @@ def generate_index():
                     const oldJsonStr = idxContent.substring(dataStart, dataEnd);
                     const archiveObj = JSON.parse(oldJsonStr);
 
-                    // 在解析出的對象中插入新視頻記錄
+                    // 在解析出的對象中插入新視頻記錄 (綁定到日曆選中日期)
                     if (!archiveObj[year]) archiveObj[year] = {};
                     if (!archiveObj[year][month]) archiveObj[year][month] = {};
                     if (!archiveObj[year][month][day]) archiveObj[year][month][day] = [];
@@ -659,16 +677,13 @@ def generate_index():
                     if (!archiveData[year][month][day]) archiveData[year][month][day] = [];
                     archiveData[year][month][day].unshift(newItem);
 
-                    selectedYear = parseInt(year);
-                    selectedMonth = parseInt(month);
-                    selectedDay = parseInt(day);
-                    
+                    // 確保畫面重新渲染（選中的日期不變）
                     initSelects();
                     renderCalendar(selectedYear, selectedMonth);
                     renderNews(selectedYear, selectedMonth, selectedDay);
 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！新視頻已無縫添加到今天的日曆中。');
+                    alert('🎉 抓取成功！新視頻已無縫添加到您選中的日期中。');
                     ytUrlInput.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
 
