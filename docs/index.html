@@ -67,7 +67,7 @@
             <div class="form-group"><label>YouTube API Key</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
             <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
             <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
-            <div class="form-group"><label>GitHub 仓库名</label><input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe"></div>
+            <div class="form-group"><label>GitHub 仓库名 (已硬编码)</label><input type="text" id="cfgGhRepo" value="YT-Street-Echoes" readonly disabled style="background:#eee; color:#888;"></div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
                 <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
@@ -97,7 +97,7 @@
 
     <script>
         // ================= 1. 终极修复：单向状态机管控 =================
-        const archiveData = /*DATA_START*/{"2026": {"6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:47", "path": "2026/6/2026_6_28_1147.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:35", "path": "2026/6/2026_6_28_1135.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:34", "path": "2026/6/2026_6_28_1134.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "7": {"6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "09:24", "path": "2026/7/2026_7_27_0924.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "20": [{"time": "09:17", "path": "2026/7/2026_7_20_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "13": [{"time": "09:17", "path": "2026/7/2026_7_13_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "8": {"3": [{"time": "09:19", "path": "2026/8/2026_8_3_0919.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:47", "path": "2026/6/2026_6_28_1147.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:35", "path": "2026/6/2026_6_28_1135.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:34", "path": "2026/6/2026_6_28_1134.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "7": {"6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "09:24", "path": "2026/7/2026_7_27_0924.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "20": [{"time": "09:17", "path": "2026/7/2026_7_20_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "13": [{"time": "09:17", "path": "2026/7/2026_7_13_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "8": {"3": [{"time": "17:27", "path": "2026/8/2026_8_3_1727.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:19", "path": "2026/8/2026_8_3_0919.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
         const today = new Date();
         
         // 所有状态必须严格通过 AppState 对象流转
@@ -260,7 +260,7 @@
             document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
-            document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
+            // 不再从 localStorage 读取仓库名，因为已彻底硬编码
             document.getElementById('settingsModal').style.display = 'flex';
         });
 
@@ -272,7 +272,7 @@
             localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
-            localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
+            // 移除了保存仓库名的逻辑，仅使用硬编码
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -280,8 +280,9 @@
         async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) {
+            const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
+            
+            if (!ghToken || !ghOwner) {
                 alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
                 return;
             }
@@ -350,9 +351,9 @@
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
-                const ghRepo = localStorage.getItem('GH_REPO');
+                const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
                 
-                if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
+                if (!ytKey || !ghToken || !ghOwner) {
                     alert('请先点击齿轮⚙️配置 API Keys！');
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
