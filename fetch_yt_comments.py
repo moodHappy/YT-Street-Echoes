@@ -3,6 +3,7 @@ import requests
 import json
 import re
 import base64
+import html
 from datetime import datetime, timezone, timedelta
 
 # ================= 配置區 =================
@@ -351,10 +352,15 @@ def fetch_top_comments(video_id):
         if 'items' in res:
             for item in res['items']:
                 snippet = item['snippet']['topLevelComment']['snippet']
-                raw_text = snippet['textDisplay']
+                # 修复核心：优先使用不带HTML转义、不带<br>的原始纯文本 (textOriginal)
+                raw_text = snippet.get('textOriginal', snippet.get('textDisplay', ''))
 
-                if len(raw_text.split()) > 6 and 'href=' not in raw_text:
+                # 過濾條件：太短的不要，帶鏈接的不要（因为是原始文本，所以判断 http 即可）
+                if len(raw_text.split()) > 6 and 'http' not in raw_text:
                     cleaned_text = clean_uppercase(raw_text)
+                    # 为了防止原生HTML语法(如 <, >)破坏页面，做一次安全转义
+                    cleaned_text = html.escape(cleaned_text)
+                    
                     comments.append({
                         'author': snippet['authorDisplayName'],
                         'avatar': snippet['authorProfileImageUrl'],
@@ -369,7 +375,7 @@ def fetch_top_comments(video_id):
     return comments[:30]
 
 def save_daily_vibe(daily_data, now_obj):
-    """(保持原样) 生成每週熱播 (無批注版) HTML"""
+    """生成每週熱播 (無批注版) HTML"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
@@ -420,7 +426,10 @@ def save_daily_vibe(daily_data, now_obj):
         .message-header {{ display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; padding-left: 2px; }}
         .author {{ font-size: 0.85rem; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }}
         .likes {{ font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }}
-        .bubble {{ background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }}
+        
+        /* 修复核心：增加 white-space: pre-wrap 解决原生换行符 \n 无法显示的问题 */
+        .bubble {{ background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); white-space: pre-wrap; word-wrap: break-word; }}
+        
         .empty-state {{ text-align: center; color: var(--muted); padding: 20px; font-size: 0.9rem; }}
     </style>
 </head>
@@ -836,8 +845,11 @@ def generate_index():
                     if (cData.items) {
                         for (let item of cData.items) {
                             const snippet = item.snippet.topLevelComment.snippet;
-                            const text = snippet.textDisplay;
-                            if (text.split(' ').length > 6 && !text.includes('href=')) {
+                            // 修复核心：优先获取 textOriginal，这样就不会有 <br> 标签和被转义的 HTML 实体
+                            const text = snippet.textOriginal || snippet.textDisplay || "";
+                            
+                            // 过滤条件：太短的不要，带网址的不要（使用 textOriginal 时判断 'http'）
+                            if (text.split(' ').length > 6 && !text.includes('http')) {
                                 comments.push({
                                     author: snippet.authorDisplayName,
                                     avatar: snippet.authorProfileImageUrl,
@@ -935,7 +947,6 @@ def generate_index():
                 }))
             };
             
-            // 安全转义嵌入 HTML Script 标签中的 JSON
             const pageDataStr = JSON.stringify(pageData).replace(/</g, '\\u003c');
 
             function escapeHTML(str) {
@@ -997,9 +1008,9 @@ def generate_index():
         .likes { font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }
         .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
         
-        /* 气泡批注隔离样式 */
+        /* 气泡批注隔离样式，并追加 white-space: pre-wrap 解决换行排版 */
         .para-wrap { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
-        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
+        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); white-space: pre-wrap; word-wrap: break-word; }
         .anno-toggle, .ai-toggle { display: inline-block; margin-left: 8px; cursor: pointer; opacity: 0.3; font-size: 0.85rem; vertical-align: baseline; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; user-select: none; }
         .anno-toggle:hover, .ai-toggle:hover { opacity: 0.8; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
@@ -1054,7 +1065,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (状态机管控隔离版) 已更新！完美植入防污染版数据引擎。")
+    print("🚀 首頁日曆 WebApp 已更新！(包含防污染逻辑与乱码转义修复)")
 
 def main():
     if not API_KEY:
