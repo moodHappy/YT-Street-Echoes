@@ -20,6 +20,7 @@ CATEGORIES = [
 ]
 
 # ================= 批注核心引擎 (仅注入单集精读) =================
+# 采用“数据状态机防污染重构”技术，杜绝所有插件造成的DOM脏数据
 ENGINE_SCRIPT = r"""
 function renderMarkdown(text) {
     if (typeof marked === 'undefined') return text;
@@ -140,7 +141,7 @@ function initAnnotations() {
                 try {
                     const aiContent = await executeAIPipeline(pText);
                     box.style.display = 'block'; view.style.display = 'none'; edit.style.display = 'block';
-                    edit.value = aiContent; edit.focus(); edit.blur();
+                    edit.value = aiContent; edit.focus(); edit.blur(); // 触发保存
                     statusMsg.style.backgroundColor = '#2ea44f'; statusMsg.innerText = '✅ 解析成功';
                     setTimeout(() => { if (statusMsg.innerText.includes('成功')) statusMsg.style.display = 'none'; }, 2000);
                 } catch (err) {
@@ -192,34 +193,82 @@ function initAnnotations() {
 }
 window.onload = initAnnotations;
 
-function reconstructSelfHTML() {
-    document.querySelectorAll('.anno-edit').forEach(edit => { edit.textContent = edit.value; });
-    
-    const navClone = document.querySelector('.nav-back').cloneNode(true);
-    const containerClone = document.querySelector('.container').cloneNode(true);
-    
-    const statusMsg = navClone.querySelector('#sync-status');
-    if(statusMsg) statusMsg.style.display = 'none';
-    
-    containerClone.querySelectorAll('.anno-box').forEach(box => box.style.display = 'none');
-    containerClone.querySelectorAll('.anno-view').forEach(view => view.style.display = 'none');
-    containerClone.querySelectorAll('.anno-edit').forEach(edit => edit.style.display = 'none');
+function escapeHTML(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
 
-    const styleText = document.querySelector('style').textContent;
+// 🔥终极隔离重建法：不抓取DOM，只读取输入框纯文本和JSON包，重新构建完美结构HTML
+function reconstructSelfHTML() {
+    const dataTag = document.getElementById('page-data');
+    if (!dataTag) throw new Error("Missing state data!");
+    const pageData = JSON.parse(dataTag.textContent);
+    
+    document.querySelectorAll('.chat-message').forEach((msg, idx) => {
+        const edit = msg.querySelector('.anno-edit');
+        if (pageData.comments[idx] && edit) {
+            pageData.comments[idx].annotation = edit.value || "";
+        }
+    });
+
+    const newJsonStr = JSON.stringify(pageData).replace(/</g, '\\u003c');
     const engineText = document.getElementById('matrix-engine').textContent;
+    const styleText = document.querySelector('style').textContent;
+    const titleText = document.title;
+
+    let comments_html = "";
+    pageData.comments.forEach(c => {
+        comments_html += `
+        <div class="chat-message">
+            <img src="${escapeHTML(c.avatar)}" class="avatar" alt="avatar" loading="lazy">
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="author">${escapeHTML(c.author)}</span>
+                    <span class="likes">❤️ ${escapeHTML(c.likes_str)}</span>
+                </div>
+                <div class="para-wrap">
+                    <div class="bubble card-text">${escapeHTML(c.text)}<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                    <div class="anno-box" style="display:none;">
+                        <div class="anno-view markdown-body"></div>
+                        <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感...">${escapeHTML(c.annotation)}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
 
     const cleanHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>${document.title}</title>
+    <title>${escapeHTML(titleText)}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
     <style>${styleText}</style>
 </head>
 <body>
-    ${navClone.outerHTML}
-    ${containerClone.outerHTML}
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回日曆樞紐</a>
+        <span id="sync-status" class="sync-status"></span>
+    </div>
+    <div class="container">
+        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${pageData.year}-${String(pageData.month).padStart(2,'0')}-${String(pageData.day).padStart(2,'0')}</h2>
+        <div class="video-card">
+            <a href="${escapeHTML(pageData.video.url)}" target="_blank"><img src="${escapeHTML(pageData.video.thumb)}" class="video-thumb" alt="Thumbnail"></a>
+            <div class="video-info">
+                <span class="v-channel">${escapeHTML(pageData.video.channel)}</span>
+                <h1 class="v-title">${escapeHTML(pageData.video.title)}</h1>
+                <div class="v-actions">
+                    <span class="timestamp">更新於: ${escapeHTML(pageData.video.now_str)}</span>
+                    <a href="${escapeHTML(pageData.video.url)}" target="_blank" class="btn-play">▶ 原片</a>
+                </div>
+            </div>
+        </div>
+        <div class="chat-container">
+            ${comments_html ? comments_html : '<div class="empty-state">暫無高价值長評論。</div>'}
+        </div>
+    </div>
+    <script id="page-data" type="application/json">${newJsonStr}<\/script>
     <script id="matrix-engine">${engineText}<\/script>
 </body>
 </html>`;
@@ -304,7 +353,6 @@ def fetch_top_comments(video_id):
                 snippet = item['snippet']['topLevelComment']['snippet']
                 raw_text = snippet['textDisplay']
 
-                # 過濾條件：太短的不要，帶鏈接的不要
                 if len(raw_text.split()) > 6 and 'href=' not in raw_text:
                     cleaned_text = clean_uppercase(raw_text)
                     comments.append({
@@ -859,7 +907,7 @@ def generate_index():
             }
         });
 
-        // 获取并解码由后端传入的 Base64 安全批注引擎脚本
+        // ================= 数据驱动防污染生成器 (注入文件本体中) =================
         const ENGINE_B64 = 'REPLACEME_ENGINE_B64';
         function b64DecodeUnicode(str) {
             return decodeURIComponent(atob(str).split('').map(function(c) {
@@ -869,27 +917,44 @@ def generate_index():
         const engineScriptContent = b64DecodeUnicode(ENGINE_B64);
 
         function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
-            const snippet = video.snippet;
-            const v_title = snippet.title;
-            const v_channel = snippet.channelTitle;
-            const v_thumb = (snippet.thumbnails.maxres || snippet.thumbnails.high || snippet.thumbnails.default).url;
-            const v_url = `https://www.youtube.com/watch?v=${video.id}`;
-            const d = new Date();
-            const now_str = `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            const pageData = {
+                year: sYear, month: sMonth, day: sDay,
+                video: {
+                    title: video.snippet.title,
+                    channel: video.snippet.channelTitle,
+                    thumb: (video.snippet.thumbnails.maxres || video.snippet.thumbnails.high || video.snippet.thumbnails.default).url,
+                    url: `https://www.youtube.com/watch?v=${video.id}`,
+                    now_str: `${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')} ${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`
+                },
+                comments: comments.map(c => ({
+                    author: c.author,
+                    avatar: c.avatar,
+                    likes_str: c.likes >= 1000 ? (c.likes / 1000).toFixed(1) + "k" : c.likes.toString(),
+                    text: c.text,
+                    annotation: ""
+                }))
+            };
+            
+            // 安全转义嵌入 HTML Script 标签中的 JSON
+            const pageDataStr = JSON.stringify(pageData).replace(/</g, '\\u003c');
+
+            function escapeHTML(str) {
+                if (typeof str !== 'string') return '';
+                return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            }
 
             let comments_html = "";
-            for (let c of comments) {
-                let likes_str = c.likes >= 1000 ? (c.likes / 1000).toFixed(1) + "k" : c.likes;
+            pageData.comments.forEach(c => {
                 comments_html += `
                 <div class="chat-message">
-                    <img src="${c.avatar}" class="avatar" alt="avatar" loading="lazy">
+                    <img src="${escapeHTML(c.avatar)}" class="avatar" alt="avatar" loading="lazy">
                     <div class="message-content">
                         <div class="message-header">
-                            <span class="author">${c.author}</span>
-                            <span class="likes">❤️ ${likes_str}</span>
+                            <span class="author">${escapeHTML(c.author)}</span>
+                            <span class="likes">❤️ ${escapeHTML(c.likes_str)}</span>
                         </div>
                         <div class="para-wrap">
-                            <div class="bubble card-text">${c.text}<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="bubble card-text">${escapeHTML(c.text)}<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
                             <div class="anno-box" style="display:none;">
                                 <div class="anno-view markdown-body"></div>
                                 <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
@@ -897,14 +962,14 @@ def generate_index():
                         </div>
                     </div>
                 </div>`;
-            }
+            });
 
             return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>${v_title}</title>
+    <title>${escapeHTML(pageData.video.title)}</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><` + `/script>
     <style>
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #1c1e21; --muted: #8e8e93; --accent: #007aff; --bubble: #e5e5ea; }
@@ -932,7 +997,7 @@ def generate_index():
         .likes { font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }
         .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
         
-        /* Annotations CSS */
+        /* 气泡批注隔离样式 */
         .para-wrap { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
         .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
         .anno-toggle, .ai-toggle { display: inline-block; margin-left: 8px; cursor: pointer; opacity: 0.3; font-size: 0.85rem; vertical-align: baseline; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; user-select: none; }
@@ -959,22 +1024,23 @@ def generate_index():
         <span id="sync-status" class="sync-status"></span>
     </div>
     <div class="container">
-        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')}</h2>
+        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${pageData.year}-${String(pageData.month).padStart(2,'0')}-${String(pageData.day).padStart(2,'0')}</h2>
         <div class="video-card">
-            <a href="${v_url}" target="_blank"><img src="${v_thumb}" class="video-thumb" alt="Thumbnail"></a>
+            <a href="${escapeHTML(pageData.video.url)}" target="_blank"><img src="${escapeHTML(pageData.video.thumb)}" class="video-thumb" alt="Thumbnail"></a>
             <div class="video-info">
-                <span class="v-channel">${v_channel}</span>
-                <h1 class="v-title">${v_title}</h1>
+                <span class="v-channel">${escapeHTML(pageData.video.channel)}</span>
+                <h1 class="v-title">${escapeHTML(pageData.video.title)}</h1>
                 <div class="v-actions">
-                    <span class="timestamp">更新於: ${now_str}</span>
-                    <a href="${v_url}" target="_blank" class="btn-play">▶ 原片</a>
+                    <span class="timestamp">更新於: ${escapeHTML(pageData.video.now_str)}</span>
+                    <a href="${escapeHTML(pageData.video.url)}" target="_blank" class="btn-play">▶ 原片</a>
                 </div>
             </div>
         </div>
         <div class="chat-container">
-            ${comments_html ? comments_html : '<div class="empty-state">暫無高價值長評論。</div>'}
+            ${comments_html ? comments_html : '<div class="empty-state">暫無高价值長評論。</div>'}
         </div>
     </div>
+    <script id="page-data" type="application/json">${pageDataStr}<` + `/script>
     <script id="matrix-engine">${engineScriptContent}<` + `/script>
 </body>
 </html>`;
@@ -988,7 +1054,7 @@ def generate_index():
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp 已更新！并安全植入了AI批注引擎到单集精读构造器。")
+    print("🚀 首頁日曆 WebApp (状态机管控隔离版) 已更新！完美植入防污染版数据引擎。")
 
 def main():
     if not API_KEY:
