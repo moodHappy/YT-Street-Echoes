@@ -293,7 +293,7 @@ def generate_index():
             <div class="form-group"><label>YouTube API Key</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
             <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
             <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
-            <div class="form-group"><label>GitHub 仓库名</label><input type="text" id="cfgGhRepo" placeholder="例如: youtube-vibe"></div>
+            <div class="form-group"><label>GitHub 仓库名 (已硬编码)</label><input type="text" id="cfgGhRepo" value="YT-Street-Echoes" readonly disabled style="background:#eee; color:#888;"></div>
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
                 <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
@@ -486,7 +486,7 @@ def generate_index():
             document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
-            document.getElementById('cfgGhRepo').value = localStorage.getItem('GH_REPO') || '';
+            // 不再从 localStorage 读取仓库名，因为已彻底硬编码
             document.getElementById('settingsModal').style.display = 'flex';
         });
 
@@ -498,7 +498,7 @@ def generate_index():
             localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
-            localStorage.setItem('GH_REPO', document.getElementById('cfgGhRepo').value.trim());
+            // 移除了保存仓库名的逻辑，仅使用硬编码
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -506,8 +506,9 @@ def generate_index():
         async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = localStorage.getItem('GH_REPO');
-            if (!ghToken || !ghOwner || !ghRepo) {
+            const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
+            
+            if (!ghToken || !ghOwner) {
                 alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
                 return;
             }
@@ -576,9 +577,9 @@ def generate_index():
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
-                const ghRepo = localStorage.getItem('GH_REPO');
+                const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
                 
-                if (!ytKey || !ghToken || !ghOwner || !ghRepo) {
+                if (!ytKey || !ghToken || !ghOwner) {
                     alert('请先点击齿轮⚙️配置 API Keys！');
                     document.getElementById('settingsModal').style.display = 'flex';
                     return;
