@@ -15,11 +15,11 @@
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-height: 85vh; overflow-y: auto; }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
-        .form-group input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .form-group input, .form-group select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-cancel { background: #eee; color: #333; }
@@ -63,11 +63,24 @@
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，不会上传到任何第三方服务器。</p>
-            <div class="form-group"><label>YouTube API Key</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
-            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
-            <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
-            <div class="form-group"><label>GitHub 仓库名 (已硬编码)</label><input type="text" id="cfgGhRepo" value="YT-Street-Echoes" readonly disabled style="background:#eee; color:#888;"></div>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，无服务器泄露风险。</p>
+            <div class="form-group"><label>YouTube API Key (后端抓取用)</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
+            <div class="form-group"><label>GitHub Token (存储同步用)</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>GitHub 账号</label><input type="text" id="cfgGhOwner" placeholder="moodHappy"></div>
+                <div style="flex:1;"><label>仓库 (硬编码)</label><input type="text" value="YT-Street-Echoes" readonly disabled style="background:#eee; color:#888;"></div>
+            </div>
+            <div style="border-top:1px dashed #ddd; margin: 15px 0;"></div>
+            <div class="form-group"><label>首选 AI 引擎 (批注助手)</label><select id="cfgPrefAI"><option value="groq">Groq</option><option value="glm">智谱</option></select></div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Groq Key</label><input type="password" id="cfgGroq" placeholder="gsk_..."></div>
+                <div style="flex:1;"><label>Groq 模型</label><input type="text" id="cfgGroqModel" placeholder="llama-3.3-70b-versatile"></div>
+            </div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>智谱 Key</label><input type="password" id="cfgGLM" placeholder="..."></div>
+                <div style="flex:1;"><label>智谱 模型</label><input type="text" id="cfgGLMModel" placeholder="GLM-4.5-Flash"></div>
+            </div>
+            
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
                 <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
@@ -96,57 +109,34 @@
     </div>
 
     <script>
-        // ================= 1. 终极修复：单向状态机管控 =================
-        const archiveData = /*DATA_START*/{"2026":{"6":{"26":[{"time":"18:37","path":"2026/6/2026_6_26_1837_custom.html","title":"📌 单集精读"},{"time":"18:34","path":"2026/6/2026_6_26_1834.html","title":"📌 每周热播"}],"27":[{"time":"08:14","path":"2026/6/2026_6_27_0814_custom.html","title":"📌 单集精读"}],"28":[{"time":"11:47","path":"2026/6/2026_6_28_1147.html","title":"📌 每周热播"},{"time":"11:42","path":"2026/6/2026_6_28_1142.html","title":"📌 每周热播"},{"time":"11:35","path":"2026/6/2026_6_28_1135.html","title":"📌 每周热播"},{"time":"11:34","path":"2026/6/2026_6_28_1134.html","title":"📌 每周热播"}],"29":[{"time":"10:00","path":"2026/6/2026_6_29_1000.html","title":"📌 每周热播"},{"time":"09:38","path":"2026/6/2026_6_29_0938_custom.html","title":"📌 单集精读"}],"30":[{"time":"11:10","path":"2026/6/2026_6_30_1110_custom.html","title":"📌 单集精读"}]},"7":{"6":[{"time":"09:30","path":"2026/7/2026_7_6_0930.html","title":"📌 每周热播"}],"13":[{"time":"09:17","path":"2026/7/2026_7_13_0917.html","title":"📌 每周热播"}],"20":[{"time":"09:17","path":"2026/7/2026_7_20_0917.html","title":"📌 每周热播"}],"27":[{"time":"09:24","path":"2026/7/2026_7_27_0924.html","title":"📌 每周热播"}]},"8":{"3":[{"time":"17:30","path":"2026/8/2026_8_3_1730_custom.html","title":"📌 单集精读: Lana Del Rey performs Blue Jeans live at The Scala Club [Lanaboards.com exclusive]"},{"time":"17:27","path":"2026/8/2026_8_3_1727.html","title":"📌 每周热播"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:47", "path": "2026/6/2026_6_28_1147.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:35", "path": "2026/6/2026_6_28_1135.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "11:34", "path": "2026/6/2026_6_28_1134.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "7": {"6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "09:24", "path": "2026/7/2026_7_27_0924.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "20": [{"time": "09:17", "path": "2026/7/2026_7_20_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "13": [{"time": "09:17", "path": "2026/7/2026_7_13_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "8": {"3": [{"time": "18:04", "path": "2026/8/2026_8_3_1804.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "17:30", "path": "2026/8/2026_8_3_1730_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "17:27", "path": "2026/8/2026_8_3_1727.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
         const today = new Date();
         
-        // 所有状态必须严格通过 AppState 对象流转
-        const AppState = {
-            year: today.getFullYear(),
-            month: today.getMonth() + 1,
-            day: today.getDate(),
-            deleteMode: false
-        };
+        const AppState = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate(), deleteMode: false };
 
         function initSelects() {
             const yearSelect = document.getElementById('yearSelect');
             yearSelect.innerHTML = '';
             const allYears = new Set(Object.keys(archiveData).map(Number));
             for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
-            
-            Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
-                const opt = document.createElement('option'); 
-                opt.value = y; 
-                opt.textContent = y + ' 年'; 
-                yearSelect.appendChild(opt); 
-            });
+            Array.from(allYears).sort((a, b) => b - a).forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); });
         }
 
-        // ================= 2. 暴力重绘引擎 (解决旧内容残留核心) =================
         function forceRender() {
-            // 修正跨月导致的无效日期（例如切到2月，防止31号残留）
             const maxDay = new Date(AppState.year, AppState.month, 0).getDate();
             if (AppState.day > maxDay) AppState.day = maxDay;
 
-            // 强制同步下拉菜单 UI
             document.getElementById('yearSelect').value = AppState.year;
             document.getElementById('monthSelect').value = AppState.month;
 
             const daysGrid = document.getElementById('daysGrid');
             const newsList = document.getElementById('newsList');
 
-            // 彻底抹除旧节点，免疫原生 DOM 刷新失效的怪异问题
-            daysGrid.innerHTML = '';
-            newsList.innerHTML = '';
+            daysGrid.innerHTML = ''; newsList.innerHTML = '';
 
             try {
-                // 渲染日历网格
                 const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
-                for (let i = 1; i < firstDay; i++) { 
-                    const emptyCell = document.createElement('div'); 
-                    emptyCell.className = 'day-cell empty'; 
-                    daysGrid.appendChild(emptyCell); 
-                }
+                for (let i = 1; i < firstDay; i++) { const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); }
                 
                 const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
                 
@@ -158,16 +148,12 @@
                     if (AppState.year === today.getFullYear() && AppState.month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
                     if (day === AppState.day) cell.classList.add('selected');
                     
-                    cell.onclick = () => { 
-                        AppState.day = day; 
-                        forceRender(); 
-                    };
+                    cell.onclick = () => { AppState.day = day; forceRender(); };
                     daysGrid.appendChild(cell);
                 }
-            } catch (err) { console.error("日历渲染异常:", err); }
+            } catch (err) {}
 
             try {
-                // 渲染新闻列表（安全链式查找）
                 let dayData = null;
                 if (archiveData[AppState.year] && archiveData[AppState.year][AppState.month] && archiveData[AppState.year][AppState.month][AppState.day]) {
                     dayData = archiveData[AppState.year][AppState.month][AppState.day];
@@ -177,7 +163,6 @@
                     dayData.forEach((news, index) => {
                         const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
                         const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                        
                         let displayTitle = news.title.replace("全美 Top 50 深度阅读", "📌 每周热播");
                         const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
                         
@@ -190,55 +175,22 @@
                         delBtn.onclick = async (e) => {
                             e.preventDefault();
                             if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                                const pathToDelete = news.path;
-                                dayData.splice(index, 1);
+                                const pathToDelete = news.path; dayData.splice(index, 1);
                                 if (dayData.length === 0) delete archiveData[AppState.year][AppState.month][AppState.day];
-                                forceRender(); // 强刷状态
-                                await syncDeleteToGithub(pathToDelete);
+                                forceRender(); await syncDeleteToGithub(pathToDelete);
                             }
                         };
-                        wrapper.appendChild(delBtn);
-                        newsList.appendChild(wrapper);
+                        wrapper.appendChild(delBtn); newsList.appendChild(wrapper);
                     });
-                } else {
-                    newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
-                }
-            } catch (err) { 
-                console.error("内容列表渲染异常:", err); 
-                newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
-            }
+                } else { newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>'; }
+            } catch (err) {}
         }
 
-        // ================= 3. 完全分离的事件绑定器 =================
-        // 所有事件严格注入，杜绝一切由于渲染导致的监听脱落
-        document.getElementById('yearSelect').addEventListener('change', (e) => {
-            AppState.year = parseInt(e.target.value, 10);
-            forceRender();
-        });
-        
-        document.getElementById('monthSelect').addEventListener('change', (e) => {
-            AppState.month = parseInt(e.target.value, 10);
-            forceRender();
-        });
-        
-        document.getElementById('prevBtn').addEventListener('click', () => {
-            AppState.month--; 
-            if (AppState.month < 1) { AppState.month = 12; AppState.year--; }
-            forceRender();
-        });
-        
-        document.getElementById('nextBtn').addEventListener('click', () => {
-            AppState.month++; 
-            if (AppState.month > 12) { AppState.month = 1; AppState.year++; }
-            forceRender();
-        });
-        
-        document.getElementById('todayBtn').addEventListener('click', () => {
-            AppState.year = today.getFullYear(); 
-            AppState.month = today.getMonth() + 1; 
-            AppState.day = today.getDate();
-            forceRender();
-        });
+        document.getElementById('yearSelect').addEventListener('change', (e) => { AppState.year = parseInt(e.target.value, 10); forceRender(); });
+        document.getElementById('monthSelect').addEventListener('change', (e) => { AppState.month = parseInt(e.target.value, 10); forceRender(); });
+        document.getElementById('prevBtn').addEventListener('click', () => { AppState.month--; if (AppState.month < 1) { AppState.month = 12; AppState.year--; } forceRender(); });
+        document.getElementById('nextBtn').addEventListener('click', () => { AppState.month++; if (AppState.month > 12) { AppState.month = 1; AppState.year++; } forceRender(); });
+        document.getElementById('todayBtn').addEventListener('click', () => { AppState.year = today.getFullYear(); AppState.month = today.getMonth() + 1; AppState.day = today.getDate(); forceRender(); });
 
         let lastTap = 0;
         document.querySelector('.calendar-wrapper').addEventListener('click', (e) => {
@@ -251,28 +203,31 @@
             lastTap = new Date().getTime();
         });
 
-        // 首次启动注入
-        initSelects();
-        forceRender();
+        initSelects(); forceRender();
 
-        // ================= 4. GitHub 交互模块 (与 DOM 解耦) =================
         document.getElementById('openSettingsBtn').addEventListener('click', () => {
             document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
-            // 不再从 localStorage 读取仓库名，因为已彻底硬编码
+            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'groq';
+            document.getElementById('cfgGroq').value = localStorage.getItem('GROQ_API_KEY') || '';
+            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
+            document.getElementById('cfgGLM').value = localStorage.getItem('GLM_API_KEY') || '';
+            document.getElementById('cfgGLMModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
 
-        document.getElementById('closeSettingsBtn').addEventListener('click', () => {
-            document.getElementById('settingsModal').style.display = 'none';
-        });
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
 
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
             localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
-            // 移除了保存仓库名的逻辑，仅使用硬编码
+            localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
+            localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroq').value.trim());
+            localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
+            localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGLM').value.trim());
+            localStorage.setItem('GLM_MODEL', document.getElementById('cfgGLMModel').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -280,20 +235,13 @@
         async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
+            const ghRepo = 'YT-Street-Echoes';
             
-            if (!ghToken || !ghOwner) {
-                alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
-                return;
-            }
+            if (!ghToken || !ghOwner) return;
             try {
-                const loadingBar = document.getElementById('loadingBar');
-                loadingBar.style.width = '10%';
-                
+                const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '10%';
                 const targetFilePath = `docs/${fileRelPath}`;
-                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
-                    headers: { 'Authorization': `token ${ghToken}` }
-                });
+                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { headers: { 'Authorization': `token ${ghToken}` } });
                 
                 if (fileRes.ok) {
                     const fileData = await fileRes.json();
@@ -305,12 +253,9 @@
                 }
                 
                 loadingBar.style.width = '50%';
-                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                    headers: { 'Authorization': `token ${ghToken}` }
-                });
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
                 const idxData = await idxRes.json();
                 const idxContent = decodeURIComponent(escape(atob(idxData.content)));
-
                 const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                 const dataEnd = idxContent.indexOf('/*DATA_END*/');
                 const newJsonStr = JSON.stringify(archiveData);
@@ -320,20 +265,11 @@
                 await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                     method: 'PUT',
                     headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: `Update index.html after deleting file`,
-                        content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                        sha: idxData.sha
-                    })
+                    body: JSON.stringify({ message: `Update index.html after deleting file`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                 });
                 
-                loadingBar.style.width = '100%';
-                setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) {
-                console.error("Sync delete failed", e);
-                alert('远端删除过程出现错误，请检查控制台。');
-                document.getElementById('loadingBar').style.width = '0%';
-            }
+                loadingBar.style.width = '100%'; setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
+            } catch(e) {}
         }
 
         function extractVideoId(url) {
@@ -351,7 +287,7 @@
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
-                const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
+                const ghRepo = 'YT-Street-Echoes';
                 
                 if (!ytKey || !ghToken || !ghOwner) {
                     alert('请先点击齿轮⚙️配置 API Keys！');
@@ -360,8 +296,7 @@
                 }
 
                 const loadingBar = document.getElementById('loadingBar');
-                loadingBar.style.width = '10%';
-                this.disabled = true;
+                loadingBar.style.width = '10%'; this.disabled = true;
 
                 try {
                     loadingBar.style.width = '30%';
@@ -391,7 +326,6 @@
                     comments.sort((a, b) => b.likes - a.likes).slice(0, 30);
 
                     loadingBar.style.width = '65%';
-                    // 安全传递 AppState 变量给子页面
                     const htmlOutput = generateBaseHTMLString(video, comments, AppState.year, AppState.month, AppState.day);
 
                     const now = new Date();
@@ -400,7 +334,6 @@
                     const dayStr = AppState.day.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
-                    
                     const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_custom.html`;
                     const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
 
@@ -408,19 +341,13 @@
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Add custom video: ${video.snippet.title}`,
-                            content: btoa(unescape(encodeURIComponent(htmlOutput)))
-                        })
+                        body: JSON.stringify({ message: `Add custom video: ${video.snippet.title}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
                     });
 
                     loadingBar.style.width = '85%';
-                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                        headers: { 'Authorization': `token ${ghToken}` }
-                    });
+                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
                     const idxData = await idxRes.json();
                     const idxContent = decodeURIComponent(escape(atob(idxData.content)));
-
                     const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                     const dataEnd = idxContent.indexOf('/*DATA_END*/');
                     const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
@@ -429,24 +356,15 @@
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    const newItem = {
-                        time: hhmmStr,
-                        path: fileRelPath,
-                        title: `📌 单集精读: ${video.snippet.title}`
-                    };
+                    const newItem = { time: hhmmStr, path: fileRelPath, title: `📌 单集精读: ${video.snippet.title}` };
                     archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
-
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     loadingBar.style.width = '95%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Update index.html calendar with custom video`,
-                            content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                            sha: idxData.sha
-                        })
+                        body: JSON.stringify({ message: `Update calendar`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
 
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
@@ -454,20 +372,25 @@
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
                     archiveData[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    forceRender(); // 完毕后统一强制同步渲染
+                    forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！新视频已无缝添加到您选中的日期中。');
+                    alert('🎉 抓取成功！包含批注功能的单集已生成。');
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
-
                 } catch (err) {
-                    alert('❌ 操作失败: ' + err.message);
-                    loadingBar.style.width = '0%';
-                } finally {
-                    this.disabled = false;
-                }
+                    alert('❌ 操作失败: ' + err.message); loadingBar.style.width = '0%';
+                } finally { this.disabled = false; }
             }
         });
+
+        // 获取并解码由后端传入的 Base64 安全批注引擎脚本
+        const ENGINE_B64 = 'CmZ1bmN0aW9uIHJlbmRlck1hcmtkb3duKHRleHQpIHsKICAgIGlmICh0eXBlb2YgbWFya2VkID09PSAndW5kZWZpbmVkJykgcmV0dXJuIHRleHQ7CiAgICBsZXQgc2FmZVRleHQgPSB0ZXh0LnJlcGxhY2UoLzxzY3JpcHRcYltePF0qKD86KD8hPFwvc2NyaXB0Pik8W148XSopKjxcL3NjcmlwdD4vZ2ksICcnKQogICAgICAgICAgICAgICAgICAgICAgIC5yZXBsYWNlKC88aWZyYW1lXGJbXjxdKig/Oig/ITxcL2lmcmFtZT4pPFtePF0qKSo8XC9pZnJhbWU+L2dpLCAnJykKICAgICAgICAgICAgICAgICAgICAgICAucmVwbGFjZSgvXGJvblthLXpdK1xzKj0vZ2ksICdkYXRhLWJsb2NrZWQ9Jyk7CiAgICByZXR1cm4gbWFya2VkLnBhcnNlKHNhZmVUZXh0KTsKfQoKbGV0IHN5bmNUaW1lb3V0ID0gbnVsbDsKZnVuY3Rpb24gc2NoZWR1bGVTeW5jKCkgewogICAgY29uc3Qgc3RhdHVzTXNnID0gZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ3N5bmMtc3RhdHVzJyk7CiAgICBzdGF0dXNNc2cuc3R5bGUuZGlzcGxheSA9ICdpbmxpbmUtYmxvY2snOwogICAgc3RhdHVzTXNnLnN0eWxlLmJhY2tncm91bmRDb2xvciA9ICcjZjM5YzEyJzsKICAgIHN0YXR1c01zZy5pbm5lclRleHQgPSAn4o+zIOabtOaUueW3suiusOW9le+8jDXnp5LlkI7oh6rliqjlkIzmraUuLi4nOwogICAgaWYgKHN5bmNUaW1lb3V0KSBjbGVhclRpbWVvdXQoc3luY1RpbWVvdXQpOwogICAgc3luY1RpbWVvdXQgPSBzZXRUaW1lb3V0KHN5bmNUb0dpdEh1YiwgNTAwMCk7Cn0KCmNvbnN0IEFJX1BST01QVCA9IGDor7fliIbmnpDku6XkuIvoi7HmlofmrrXokL3vvIzlubbkuKXmoLzmjInnhafku6XkuIsgTWFya2Rvd24g5qC85byP6L6T5Ye677yI5LiN6KaB6L6T5Ye65Lu75L2V6aKd5aSW55qE5bqf6K+d77yJ77yaXG5cbiMjIyDwn5OMIOWujOaVtOe/u+ivkVxuXG5b5q2k5aSE5aGr5YaZ5a6M5pW057+76K+RXVxuXG4jIyMg8J+TjCBLZXkgRXhwcmVzc2lvbnNcblxuLSAqKlvljZXor43miJbnn63or61dKipcbiAgPSBb5Lit5paH6YeK5LmJXVxuICDvvIhb5Y+v6YCJ55qE6KGl5YWF6K+05piO77yM5aaC5YCS6KOF57uT5p6E5oiW6K+t5aKD562JXe+8iVxuXG7mrrXokL3lhoXlrrnvvJpcbmA7Cgphc3luYyBmdW5jdGlvbiBmZXRjaEdyb3EodGV4dCwgYXBpS2V5LCBtb2RlbE5hbWUpIHsKICAgIGNvbnN0IHJlcyA9IGF3YWl0IGZldGNoKCdodHRwczovL2FwaS5ncm9xLmNvbS9vcGVuYWkvdjEvY2hhdC9jb21wbGV0aW9ucycsIHsKICAgICAgICBtZXRob2Q6ICdQT1NUJywKICAgICAgICBoZWFkZXJzOiB7ICdBdXRob3JpemF0aW9uJzogYEJlYXJlciAke2FwaUtleX1gLCAnQ29udGVudC1UeXBlJzogJ2FwcGxpY2F0aW9uL2pzb24nIH0sCiAgICAgICAgYm9keTogSlNPTi5zdHJpbmdpZnkoewogICAgICAgICAgICBtb2RlbDogbW9kZWxOYW1lLAogICAgICAgICAgICBtZXNzYWdlczogWwogICAgICAgICAgICAgICAgeyByb2xlOiAnc3lzdGVtJywgY29udGVudDogJ1lvdSBhcmUgYW4gRW5nbGlzaCB0ZWFjaGVyLiBPdXRwdXQgRVhBQ1RMWSBpbiB0aGUgcmVxdWVzdGVkIE1hcmtkb3duIGZvcm1hdC4nIH0sCiAgICAgICAgICAgICAgICB7IHJvbGU6ICd1c2VyJywgY29udGVudDogQUlfUFJPTVBUICsgYCIke3RleHR9ImAgfQogICAgICAgICAgICBdLAogICAgICAgICAgICB0ZW1wZXJhdHVyZTogMC4zCiAgICAgICAgfSkKICAgIH0pOwogICAgaWYgKCFyZXMub2spIHRocm93IG5ldyBFcnJvcihgR3JvcSBBUEkgRXJyb3I6ICR7cmVzLnN0YXR1c31gKTsKICAgIGNvbnN0IGpzb24gPSBhd2FpdCByZXMuanNvbigpOwogICAgaWYgKGpzb24uY2hvaWNlcyAmJiBqc29uLmNob2ljZXMubGVuZ3RoID4gMCkgcmV0dXJuIGpzb24uY2hvaWNlc1swXS5tZXNzYWdlLmNvbnRlbnQudHJpbSgpOwogICAgdGhyb3cgbmV3IEVycm9yKCdHcm9x6L+U5Zue5pWw5o2u5byC5bi4Jyk7Cn0KCmFzeW5jIGZ1bmN0aW9uIGZldGNoR0xNKHRleHQsIGFwaUtleSwgbW9kZWxOYW1lKSB7CiAgICBjb25zdCByZXMgPSBhd2FpdCBmZXRjaCgnaHR0cHM6Ly9vcGVuLmJpZ21vZGVsLmNuL2FwaS9wYWFzL3Y0L2NoYXQvY29tcGxldGlvbnMnLCB7CiAgICAgICAgbWV0aG9kOiAnUE9TVCcsCiAgICAgICAgaGVhZGVyczogeyAnQXV0aG9yaXphdGlvbic6IGBCZWFyZXIgJHthcGlLZXl9YCwgJ0NvbnRlbnQtVHlwZSc6ICdhcHBsaWNhdGlvbi9qc29uJyB9LAogICAgICAgIGJvZHk6IEpTT04uc3RyaW5naWZ5KHsKICAgICAgICAgICAgbW9kZWw6IG1vZGVsTmFtZSwKICAgICAgICAgICAgbWVzc2FnZXM6IFsKICAgICAgICAgICAgICAgIHsgcm9sZTogJ3N5c3RlbScsIGNvbnRlbnQ6ICdZb3UgYXJlIGFuIEVuZ2xpc2ggdGVhY2hlci4gT3V0cHV0IEVYQUNUTFkgaW4gdGhlIHJlcXVlc3RlZCBNYXJrZG93biBmb3JtYXQuJyB9LAogICAgICAgICAgICAgICAgeyByb2xlOiAndXNlcicsIGNvbnRlbnQ6IEFJX1BST01QVCArIGAiJHt0ZXh0fSJgIH0KICAgICAgICAgICAgXSwKICAgICAgICAgICAgdGVtcGVyYXR1cmU6IDAuMwogICAgICAgIH0pCiAgICB9KTsKICAgIGlmICghcmVzLm9rKSB0aHJvdyBuZXcgRXJyb3IoYOaZuuiwsUdMTSBBUEkgRXJyb3I6ICR7cmVzLnN0YXR1c31gKTsKICAgIGNvbnN0IGpzb24gPSBhd2FpdCByZXMuanNvbigpOwogICAgaWYgKGpzb24uY2hvaWNlcyAmJiBqc29uLmNob2ljZXMubGVuZ3RoID4gMCkgcmV0dXJuIGpzb24uY2hvaWNlc1swXS5tZXNzYWdlLmNvbnRlbnQudHJpbSgpOwogICAgdGhyb3cgbmV3IEVycm9yKCfmmbrosLFHTE3ov5Tlm57mlbDmja7lvILluLgnKTsKfQoKYXN5bmMgZnVuY3Rpb24gZXhlY3V0ZUFJUGlwZWxpbmUodGV4dCkgewogICAgY29uc3QgcHJlZiA9IGxvY2FsU3RvcmFnZS5nZXRJdGVtKCdQUkVGRVJSRURfQUknKSB8fCAnZ3JvcSc7CiAgICBjb25zdCBncm9xS2V5ID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ0dST1FfQVBJX0tFWScpIHx8ICcnOwogICAgY29uc3QgZ2xtS2V5ID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ0dMTV9BUElfS0VZJykgfHwgJyc7CiAgICBjb25zdCBncm9xTW9kZWwgPSBsb2NhbFN0b3JhZ2UuZ2V0SXRlbSgnR1JPUV9NT0RFTCcpIHx8ICcnOwogICAgY29uc3QgZ2xtTW9kZWwgPSBsb2NhbFN0b3JhZ2UuZ2V0SXRlbSgnR0xNX01PREVMJykgfHwgJyc7CgogICAgaWYgKCghZ3JvcUtleSAmJiAhZ2xtS2V5KSB8fCAoIWdyb3FNb2RlbCAmJiAhZ2xtTW9kZWwpKSB0aHJvdyBuZXcgRXJyb3IoJ01JU1NJTkdfS0VZU19PUl9NT0RFTFMnKTsKCiAgICBjb25zdCBydW5Hcm9xID0gYXN5bmMgKCkgPT4geyBpZiAoIWdyb3FLZXkgfHwgIWdyb3FNb2RlbCkgdGhyb3cgbmV3IEVycm9yKCJHcm9xIOmFjee9rue8uuWksSIpOyByZXR1cm4gYXdhaXQgZmV0Y2hHcm9xKHRleHQsIGdyb3FLZXksIGdyb3FNb2RlbCk7IH07CiAgICBjb25zdCBydW5HTE0gPSBhc3luYyAoKSA9PiB7IGlmICghZ2xtS2V5IHx8ICFnbG1Nb2RlbCkgdGhyb3cgbmV3IEVycm9yKCLmmbrosLFHTE0g6YWN572u57y65aSxIik7IHJldHVybiBhd2FpdCBmZXRjaEdMTSh0ZXh0LCBnbG1LZXksIGdsbU1vZGVsKTsgfTsKCiAgICBpZiAocHJlZiA9PT0gJ2dyb3EnKSB7CiAgICAgICAgdHJ5IHsgcmV0dXJuIGF3YWl0IHJ1bkdyb3EoKTsgfSBjYXRjaCAoZXJyKSB7CiAgICAgICAgICAgIGNvbnNvbGUud2FybigiR3JvcSDlpLHotKXvvIzpmY3nuqfliLDmmbrosLE6IiwgZXJyKTsKICAgICAgICAgICAgaWYgKGdsbUtleSAmJiBnbG1Nb2RlbCkgeyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3luYy1zdGF0dXMnKS5pbm5lclRleHQgPSAn4pqg77iPIOmZjee6p+S4uuaZuuiwsS4uLic7IHJldHVybiBhd2FpdCBydW5HTE0oKTsgfQogICAgICAgICAgICB0aHJvdyBlcnI7CiAgICAgICAgfQogICAgfSBlbHNlIHsKICAgICAgICB0cnkgeyByZXR1cm4gYXdhaXQgcnVuR0xNKCk7IH0gY2F0Y2ggKGVycikgewogICAgICAgICAgICBjb25zb2xlLndhcm4oIuaZuuiwsSDlpLHotKXvvIzpmY3nuqfliLBHcm9xOiIsIGVycik7CiAgICAgICAgICAgIGlmIChncm9xS2V5ICYmIGdyb3FNb2RlbCkgeyBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3luYy1zdGF0dXMnKS5pbm5lclRleHQgPSAn4pqg77iPIOmZjee6p+S4ukdyb3EuLi4nOyByZXR1cm4gYXdhaXQgcnVuR3JvcSgpOyB9CiAgICAgICAgICAgIHRocm93IGVycjsKICAgICAgICB9CiAgICB9Cn0KCmZ1bmN0aW9uIGluaXRBbm5vdGF0aW9ucygpIHsKICAgIGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJy5wYXJhLXdyYXAnKS5mb3JFYWNoKHdyYXAgPT4gewogICAgICAgIGNvbnN0IHZpZXcgPSB3cmFwLnF1ZXJ5U2VsZWN0b3IoJy5hbm5vLXZpZXcnKTsKICAgICAgICBjb25zdCBlZGl0ID0gd3JhcC5xdWVyeVNlbGVjdG9yKCcuYW5uby1lZGl0Jyk7CiAgICAgICAgY29uc3QgdG9nZ2xlID0gd3JhcC5xdWVyeVNlbGVjdG9yKCcuYW5uby10b2dnbGUnKTsKICAgICAgICBjb25zdCBhaVRvZ2dsZSA9IHdyYXAucXVlcnlTZWxlY3RvcignLmFpLXRvZ2dsZScpOwogICAgICAgIGNvbnN0IGJveCA9IHdyYXAucXVlcnlTZWxlY3RvcignLmFubm8tYm94Jyk7CgogICAgICAgIGNvbnN0IHJhd1RleHQgPSBlZGl0LnZhbHVlLnRyaW0oKTsKICAgICAgICBpZiAocmF3VGV4dCkgeyB0b2dnbGUuY2xhc3NMaXN0LmFkZCgnaGFzLWFubm8nKTsgdmlldy5pbm5lckhUTUwgPSByZW5kZXJNYXJrZG93bihyYXdUZXh0KTsgfQogICAgICAgIAogICAgICAgIGlmIChhaVRvZ2dsZSkgewogICAgICAgICAgICBhaVRvZ2dsZS5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIGFzeW5jIChlKSA9PiB7CiAgICAgICAgICAgICAgICBlLnByZXZlbnREZWZhdWx0KCk7IGUuc3RvcFByb3BhZ2F0aW9uKCk7CiAgICAgICAgICAgICAgICBpZiAoYWlUb2dnbGUuY2xhc3NMaXN0LmNvbnRhaW5zKCdsb2FkaW5nJykpIHJldHVybjsKCiAgICAgICAgICAgICAgICBjb25zdCBncm9xS2V5ID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ0dST1FfQVBJX0tFWScpIHx8ICcnOwogICAgICAgICAgICAgICAgY29uc3QgZ2xtS2V5ID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ0dMTV9BUElfS0VZJykgfHwgJyc7CiAgICAgICAgICAgICAgICBpZiAoIWdyb3FLZXkgJiYgIWdsbUtleSkgeyBhbGVydCgn4pqg77iPIOivt+WFiOi/lOWbnuaXpeWOhuaeoue6vemFjee9ruS4reW/g+iuvue9riBBSSBBUEkgS2V577yBJyk7IHJldHVybjsgfQoKICAgICAgICAgICAgICAgIGNvbnN0IHBDbG9uZSA9IHdyYXAucXVlcnlTZWxlY3RvcignLmNhcmQtdGV4dCcpLmNsb25lTm9kZSh0cnVlKTsKICAgICAgICAgICAgICAgIHBDbG9uZS5xdWVyeVNlbGVjdG9yQWxsKCcuYW5uby10b2dnbGUsIC5haS10b2dnbGUnKS5mb3JFYWNoKGVsID0+IGVsLnJlbW92ZSgpKTsKICAgICAgICAgICAgICAgIGNvbnN0IHBUZXh0ID0gcENsb25lLnRleHRDb250ZW50LnRyaW0oKTsKICAgICAgICAgICAgICAgIGlmICghcFRleHQpIHJldHVybjsKCiAgICAgICAgICAgICAgICBhaVRvZ2dsZS5jbGFzc0xpc3QuYWRkKCdsb2FkaW5nJyk7CiAgICAgICAgICAgICAgICBjb25zdCBzdGF0dXNNc2cgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3luYy1zdGF0dXMnKTsKICAgICAgICAgICAgICAgIHN0YXR1c01zZy5zdHlsZS5kaXNwbGF5ID0gJ2lubGluZS1ibG9jayc7CiAgICAgICAgICAgICAgICBzdGF0dXNNc2cuc3R5bGUuYmFja2dyb3VuZENvbG9yID0gJyMwMDdhZmYnOwogICAgICAgICAgICAgICAgc3RhdHVzTXNnLmlubmVyVGV4dCA9ICfwn6SWIEFJIOaAneiAg+S4rS4uLic7CgogICAgICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAgICAgICBjb25zdCBhaUNvbnRlbnQgPSBhd2FpdCBleGVjdXRlQUlQaXBlbGluZShwVGV4dCk7CiAgICAgICAgICAgICAgICAgICAgYm94LnN0eWxlLmRpc3BsYXkgPSAnYmxvY2snOyB2aWV3LnN0eWxlLmRpc3BsYXkgPSAnbm9uZSc7IGVkaXQuc3R5bGUuZGlzcGxheSA9ICdibG9jayc7CiAgICAgICAgICAgICAgICAgICAgZWRpdC52YWx1ZSA9IGFpQ29udGVudDsgZWRpdC5mb2N1cygpOyBlZGl0LmJsdXIoKTsKICAgICAgICAgICAgICAgICAgICBzdGF0dXNNc2cuc3R5bGUuYmFja2dyb3VuZENvbG9yID0gJyMyZWE0NGYnOyBzdGF0dXNNc2cuaW5uZXJUZXh0ID0gJ+KchSDop6PmnpDmiJDlip8nOwogICAgICAgICAgICAgICAgICAgIHNldFRpbWVvdXQoKCkgPT4geyBpZiAoc3RhdHVzTXNnLmlubmVyVGV4dC5pbmNsdWRlcygn5oiQ5YqfJykpIHN0YXR1c01zZy5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnOyB9LCAyMDAwKTsKICAgICAgICAgICAgICAgIH0gY2F0Y2ggKGVycikgewogICAgICAgICAgICAgICAgICAgIGNvbnNvbGUuZXJyb3IoZXJyKTsKICAgICAgICAgICAgICAgICAgICBhbGVydChlcnIubWVzc2FnZSA9PT0gJ01JU1NJTkdfS0VZU19PUl9NT0RFTFMnID8gJ+KaoO+4jyDor7fov5Tlm57phY3nva5BSeWvhumSpeWSjOaooeWei++8gScgOiAn4p2MIEFJIOino+aekOWksei0pTogJyArIGVyci5tZXNzYWdlKTsKICAgICAgICAgICAgICAgICAgICBzdGF0dXNNc2cuc3R5bGUuZGlzcGxheSA9ICdub25lJzsKICAgICAgICAgICAgICAgIH0gZmluYWxseSB7IGFpVG9nZ2xlLmNsYXNzTGlzdC5yZW1vdmUoJ2xvYWRpbmcnKTsgfQogICAgICAgICAgICB9KTsKICAgICAgICB9CgogICAgICAgIHRvZ2dsZS5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIChlKSA9PiB7CiAgICAgICAgICAgIGUucHJldmVudERlZmF1bHQoKTsgZS5zdG9wUHJvcGFnYXRpb24oKTsKICAgICAgICAgICAgaWYgKGJveC5zdHlsZS5kaXNwbGF5ID09PSAnYmxvY2snKSB7IGJveC5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnOyB9IAogICAgICAgICAgICBlbHNlIHsKICAgICAgICAgICAgICAgIGJveC5zdHlsZS5kaXNwbGF5ID0gJ2Jsb2NrJzsKICAgICAgICAgICAgICAgIGlmICghZWRpdC52YWx1ZS50cmltKCkpIHsgdmlldy5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnOyBlZGl0LnN0eWxlLmRpc3BsYXkgPSAnYmxvY2snOyBzZXRUaW1lb3V0KCgpID0+IGVkaXQuZm9jdXMoKSwgNTApOyB9IAogICAgICAgICAgICAgICAgZWxzZSB7IHZpZXcuc3R5bGUuZGlzcGxheSA9ICdibG9jayc7IGVkaXQuc3R5bGUuZGlzcGxheSA9ICdub25lJzsgfQogICAgICAgICAgICB9CiAgICAgICAgfSk7CgogICAgICAgIGNvbnN0IHRyaWdnZXJFZGl0ID0gKCkgPT4geyB2aWV3LnN0eWxlLmRpc3BsYXkgPSAnbm9uZSc7IGVkaXQuc3R5bGUuZGlzcGxheSA9ICdibG9jayc7IGVkaXQudmFsdWUgPSBlZGl0LnZhbHVlOyBzZXRUaW1lb3V0KCgpID0+IGVkaXQuZm9jdXMoKSwgNTApOyB9OwogICAgICAgIHZpZXcuYWRkRXZlbnRMaXN0ZW5lcignZGJsY2xpY2snLCAoKSA9PiB7IGJveC5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnOyB9KTsKCiAgICAgICAgbGV0IGxhc3RUYXAgPSAwOwogICAgICAgIHZpZXcuYWRkRXZlbnRMaXN0ZW5lcigndG91Y2hzdGFydCcsIGUgPT4gewogICAgICAgICAgICBpZiAoZS50b3VjaGVzLmxlbmd0aCA9PT0gMikgeyB0cmlnZ2VyRWRpdCgpOyB9IAogICAgICAgICAgICBlbHNlIGlmIChlLnRvdWNoZXMubGVuZ3RoID09PSAxKSB7CiAgICAgICAgICAgICAgICBjb25zdCBjdXJyZW50VGltZSA9IG5ldyBEYXRlKCkuZ2V0VGltZSgpOwogICAgICAgICAgICAgICAgY29uc3QgdGFwTGVuZ3RoID0gY3VycmVudFRpbWUgLSBsYXN0VGFwOwogICAgICAgICAgICAgICAgaWYgKHRhcExlbmd0aCA8IDUwMCAmJiB0YXBMZW5ndGggPiAwKSB7IGJveC5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnOyB9CiAgICAgICAgICAgICAgICBsYXN0VGFwID0gY3VycmVudFRpbWU7CiAgICAgICAgICAgIH0KICAgICAgICB9LCB7cGFzc2l2ZTogdHJ1ZX0pOwoKICAgICAgICBlZGl0LmFkZEV2ZW50TGlzdGVuZXIoJ2JsdXInLCAoKSA9PiB7CiAgICAgICAgICAgIGNvbnN0IG5ld1ZhbCA9IGVkaXQudmFsdWUudHJpbSgpOwogICAgICAgICAgICB0cnkgeyB2aWV3LmlubmVySFRNTCA9IG5ld1ZhbCA/IHJlbmRlck1hcmtkb3duKG5ld1ZhbCkgOiAnJzsgfSBjYXRjaChlKXt9CiAgICAgICAgICAgIGVkaXQuc3R5bGUuZGlzcGxheSA9ICdub25lJzsKICAgICAgICAgICAgaWYgKG5ld1ZhbCkgeyB2aWV3LnN0eWxlLmRpc3BsYXkgPSAnYmxvY2snOyB0b2dnbGUuY2xhc3NMaXN0LmFkZCgnaGFzLWFubm8nKTsgfSAKICAgICAgICAgICAgZWxzZSB7IHZpZXcuc3R5bGUuZGlzcGxheSA9ICdub25lJzsgYm94LnN0eWxlLmRpc3BsYXkgPSAnbm9uZSc7IHRvZ2dsZS5jbGFzc0xpc3QucmVtb3ZlKCdoYXMtYW5ubycpOyB9CgogICAgICAgICAgICBpZiAoZWRpdC5nZXRBdHRyaWJ1dGUoJ2RhdGEtb2xkLXZhbCcpICE9PSBuZXdWYWwpIHsKICAgICAgICAgICAgICAgIGVkaXQuc2V0QXR0cmlidXRlKCdkYXRhLW9sZC12YWwnLCBuZXdWYWwpOwogICAgICAgICAgICAgICAgc2NoZWR1bGVTeW5jKCk7CiAgICAgICAgICAgIH0KICAgICAgICB9KTsKICAgICAgICBlZGl0LnNldEF0dHJpYnV0ZSgnZGF0YS1vbGQtdmFsJywgcmF3VGV4dCk7CiAgICB9KTsKfQp3aW5kb3cub25sb2FkID0gaW5pdEFubm90YXRpb25zOwoKZnVuY3Rpb24gcmVjb25zdHJ1Y3RTZWxmSFRNTCgpIHsKICAgIGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJy5hbm5vLWVkaXQnKS5mb3JFYWNoKGVkaXQgPT4geyBlZGl0LnRleHRDb250ZW50ID0gZWRpdC52YWx1ZTsgfSk7CiAgICAKICAgIGNvbnN0IG5hdkNsb25lID0gZG9jdW1lbnQucXVlcnlTZWxlY3RvcignLm5hdi1iYWNrJykuY2xvbmVOb2RlKHRydWUpOwogICAgY29uc3QgY29udGFpbmVyQ2xvbmUgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcuY29udGFpbmVyJykuY2xvbmVOb2RlKHRydWUpOwogICAgCiAgICBjb25zdCBzdGF0dXNNc2cgPSBuYXZDbG9uZS5xdWVyeVNlbGVjdG9yKCcjc3luYy1zdGF0dXMnKTsKICAgIGlmKHN0YXR1c01zZykgc3RhdHVzTXNnLnN0eWxlLmRpc3BsYXkgPSAnbm9uZSc7CiAgICAKICAgIGNvbnRhaW5lckNsb25lLnF1ZXJ5U2VsZWN0b3JBbGwoJy5hbm5vLWJveCcpLmZvckVhY2goYm94ID0+IGJveC5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnKTsKICAgIGNvbnRhaW5lckNsb25lLnF1ZXJ5U2VsZWN0b3JBbGwoJy5hbm5vLXZpZXcnKS5mb3JFYWNoKHZpZXcgPT4gdmlldy5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnKTsKICAgIGNvbnRhaW5lckNsb25lLnF1ZXJ5U2VsZWN0b3JBbGwoJy5hbm5vLWVkaXQnKS5mb3JFYWNoKGVkaXQgPT4gZWRpdC5zdHlsZS5kaXNwbGF5ID0gJ25vbmUnKTsKCiAgICBjb25zdCBzdHlsZVRleHQgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCdzdHlsZScpLnRleHRDb250ZW50OwogICAgY29uc3QgZW5naW5lVGV4dCA9IGRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdtYXRyaXgtZW5naW5lJykudGV4dENvbnRlbnQ7CgogICAgY29uc3QgY2xlYW5IVE1MID0gYDwhRE9DVFlQRSBodG1sPgo8aHRtbCBsYW5nPSJlbiI+CjxoZWFkPgogICAgPG1ldGEgY2hhcnNldD0iVVRGLTgiPgogICAgPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAsIG1heGltdW0tc2NhbGU9MS4wLCB1c2VyLXNjYWxhYmxlPW5vIj4KICAgIDx0aXRsZT4ke2RvY3VtZW50LnRpdGxlfTwvdGl0bGU+CiAgICA8c2NyaXB0IHNyYz0iaHR0cHM6Ly9jZG4uanNkZWxpdnIubmV0L25wbS9tYXJrZWQvbWFya2VkLm1pbi5qcyI+PFwvc2NyaXB0PgogICAgPHN0eWxlPiR7c3R5bGVUZXh0fTwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgICAke25hdkNsb25lLm91dGVySFRNTH0KICAgICR7Y29udGFpbmVyQ2xvbmUub3V0ZXJIVE1MfQogICAgPHNjcmlwdCBpZD0ibWF0cml4LWVuZ2luZSI+JHtlbmdpbmVUZXh0fTxcL3NjcmlwdD4KPC9ib2R5Pgo8L2h0bWw+YDsKICAgIHJldHVybiBjbGVhbkhUTUw7Cn0KCmFzeW5jIGZ1bmN0aW9uIHN5bmNUb0dpdEh1YigpIHsKICAgIGNvbnN0IHRva2VuID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ0dIX1RPS0VOJyk7CiAgICBjb25zdCBvd25lciA9IGxvY2FsU3RvcmFnZS5nZXRJdGVtKCdHSF9PV05FUicpOwogICAgY29uc3QgcmVwbyA9ICdZVC1TdHJlZXQtRWNob2VzJzsKICAgIAogICAgaWYoIXRva2VuIHx8ICFvd25lcikgeyBhbGVydCgn57y65bCRIEdpdEh1YiBUb2tlbu+8jOaXoOazleWQjOatpe+8gScpOyByZXR1cm47IH0KCiAgICBjb25zdCBzdGF0dXNNc2cgPSBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc3luYy1zdGF0dXMnKTsKICAgIHN0YXR1c01zZy5zdHlsZS5kaXNwbGF5ID0gJ2lubGluZS1ibG9jayc7CiAgICBzdGF0dXNNc2cuc3R5bGUuYmFja2dyb3VuZENvbG9yID0gJyMyZWE0NGYnOwogICAgc3RhdHVzTXNnLmlubmVyVGV4dCA9ICfwn5OhIOWQjOatpeS4rS4uLic7CgogICAgY29uc3QgcHVyZUh0bWwgPSByZWNvbnN0cnVjdFNlbGZIVE1MKCk7CiAgICAKICAgIGxldCB1cmxQYXRoID0gd2luZG93LmxvY2F0aW9uLnBhdGhuYW1lOwogICAgY29uc3QgbWF0Y2ggPSB1cmxQYXRoLm1hdGNoKC8oXGR7NH1cL1xkezEsMn1cL1teL10rXC5odG1sKSQvKTsKICAgIGxldCBmaWxlUmVsUGF0aCA9IG1hdGNoID8gImRvY3MvIiArIG1hdGNoWzFdIDogKHVybFBhdGguaW5jbHVkZXMoJ2RvY3MvJykgPyB1cmxQYXRoLnN1YnN0cmluZyh1cmxQYXRoLmluZGV4T2YoJ2RvY3MvJykpIDogbnVsbCk7CiAgICAKICAgIGlmICghZmlsZVJlbFBhdGgpIHsgYWxlcnQoJ+i3r+W+hOino+aekOWksei0pe+8gScpOyBzdGF0dXNNc2cuc3R5bGUuZGlzcGxheSA9ICdub25lJzsgcmV0dXJuOyB9CgogICAgdHJ5IHsKICAgICAgICBjb25zdCBiYXNlNjRIdG1sID0gYnRvYShlbmNvZGVVUklDb21wb25lbnQocHVyZUh0bWwpLnJlcGxhY2UoLyUoWzAtOUEtRl17Mn0pL2csIGZ1bmN0aW9uKG1hdGNoLCBwMSkgeyByZXR1cm4gU3RyaW5nLmZyb21DaGFyQ29kZSgnMHgnICsgcDEpOyB9KSk7CiAgICAgICAgY29uc3QgZ2V0UmVzID0gYXdhaXQgZmV0Y2goYGh0dHBzOi8vYXBpLmdpdGh1Yi5jb20vcmVwb3MvJHtvd25lcn0vJHtyZXBvfS9jb250ZW50cy8ke2ZpbGVSZWxQYXRofT90PSR7RGF0ZS5ub3coKX1gLCB7IGhlYWRlcnM6IHsgJ0F1dGhvcml6YXRpb24nOiBgdG9rZW4gJHt0b2tlbn1gIH0sIGNhY2hlOiAnbm8tc3RvcmUnIH0pOwogICAgICAgIGlmICghZ2V0UmVzLm9rKSB0aHJvdyBuZXcgRXJyb3IoJ0FQSSDojrflj5YgU0hBIOWksei0pScpOwogICAgICAgIGNvbnN0IGZpbGVEYXRhID0gYXdhaXQgZ2V0UmVzLmpzb24oKTsKICAgICAgICBjb25zdCBwdXRSZXMgPSBhd2FpdCBmZXRjaChgaHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy8ke293bmVyfS8ke3JlcG99L2NvbnRlbnRzLyR7ZmlsZVJlbFBhdGh9YCwgewogICAgICAgICAgICBtZXRob2Q6ICdQVVQnLAogICAgICAgICAgICBoZWFkZXJzOiB7ICdBdXRob3JpemF0aW9uJzogYHRva2VuICR7dG9rZW59YCwgJ0NvbnRlbnQtVHlwZSc6ICdhcHBsaWNhdGlvbi9qc29uJyB9LAogICAgICAgICAgICBib2R5OiBKU09OLnN0cmluZ2lmeSh7IG1lc3NhZ2U6IGBBdXRvLXNhdmUgYW5ub3RhdGlvbmAsIGNvbnRlbnQ6IGJhc2U2NEh0bWwsIHNoYTogZmlsZURhdGEuc2hhIH0pCiAgICAgICAgfSk7CiAgICAgICAgaWYocHV0UmVzLm9rKSB7CiAgICAgICAgICAgIHN0YXR1c01zZy5zdHlsZS5iYWNrZ3JvdW5kQ29sb3IgPSAnIzJlYTQ0Zic7IHN0YXR1c01zZy5pbm5lclRleHQgPSAn4pyFIOS6keerr+W3suWQjOatpSc7CiAgICAgICAgICAgIHNldFRpbWVvdXQoKCkgPT4geyBpZiAoc3RhdHVzTXNnLmlubmVyVGV4dCA9PT0gJ+KchSDkupHnq6/lt7LlkIzmraUnKSBzdGF0dXNNc2cuc3R5bGUuZGlzcGxheSA9ICdub25lJzsgfSwgMzAwMCk7CiAgICAgICAgfSBlbHNlIHRocm93IG5ldyBFcnJvcignUHV0IOivt+axguWksei0pScpOwogICAgfSBjYXRjaChlKSB7CiAgICAgICAgc3RhdHVzTXNnLnN0eWxlLmJhY2tncm91bmRDb2xvciA9ICcjZTc0YzNjJzsgc3RhdHVzTXNnLmlubmVyVGV4dCA9ICfinYwg5ZCM5q2l5aSx6LSlKOmHjeivlSknOwogICAgICAgIHN0YXR1c01zZy5zdHlsZS5jdXJzb3IgPSAncG9pbnRlcic7CiAgICAgICAgc3RhdHVzTXNnLm9uY2xpY2sgPSAoKSA9PiB7IHN0YXR1c01zZy5vbmNsaWNrID0gbnVsbDsgc3RhdHVzTXNnLnN0eWxlLmN1cnNvciA9ICdkZWZhdWx0Jzsgc3luY1RvR2l0SHViKCk7IH07CiAgICB9Cn0K';
+        function b64DecodeUnicode(str) {
+            return decodeURIComponent(atob(str).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+        }
+        const engineScriptContent = b64DecodeUnicode(ENGINE_B64);
 
         function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
             const snippet = video.snippet;
@@ -489,7 +412,13 @@
                             <span class="author">${c.author}</span>
                             <span class="likes">❤️ ${likes_str}</span>
                         </div>
-                        <div class="bubble">${c.text}</div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">${c.text}<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
             }
@@ -500,12 +429,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${v_title}</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><` + `/script>
     <style>
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #1c1e21; --muted: #8e8e93; --accent: #007aff; --bubble: #e5e5ea; }
         body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; text-align: left; -webkit-font-smoothing: antialiased; }
         .container { max-width: 600px; margin: 0 auto; padding: 0 0 50px 0; }
-        .nav-back { padding: 15px; text-align: center; background: var(--card); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .nav-back a { text-decoration: none; color: white; background: #ff0000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        .nav-back { padding: 15px; text-align: center; background: var(--card); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; }
+        .nav-back a { text-decoration: none; color: white; background: #ff0000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; position: relative; z-index: 2;}
+        .sync-status { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: none; color: #fff; background: #2ea44f; position: absolute; right: 15px; z-index: 3; }
+        
         .video-card { background: var(--card); border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
         .video-thumb { width: 100%; height: auto; display: block; aspect-ratio: 16/9; object-fit: cover; }
         .video-info { padding: 20px; }
@@ -514,6 +446,7 @@
         .v-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f0f0f0; padding-top: 15px; }
         .timestamp { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
         .btn-play { background: #ff0000; color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; }
+        
         .chat-container { padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
         .chat-message { display: flex; gap: 12px; align-items: flex-start; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #ddd; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -521,12 +454,34 @@
         .message-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; padding-left: 2px; }
         .author { font-size: 0.85rem; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
         .likes { font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }
-        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
         .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
+        
+        /* Annotations CSS */
+        .para-wrap { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
+        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
+        .anno-toggle, .ai-toggle { display: inline-block; margin-left: 8px; cursor: pointer; opacity: 0.3; font-size: 0.85rem; vertical-align: baseline; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; user-select: none; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.8; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .anno-box { display: none; margin-top: 8px; width: 100%; box-sizing: border-box; background: #fff; border-left: 3px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .anno-view { font-size: 0.95rem; line-height: 1.5; color: #333; }
+        .anno-edit { width: 100%; min-height: 80px; padding: 10px; font-family: monospace; font-size: 0.95rem; border: 1px dashed #ccc; border-radius: 6px; box-sizing: border-box; display: none; resize: vertical; }
+        .anno-edit:focus { outline: none; border: 1px solid var(--accent); }
+
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: var(--accent); font-size: 1.1rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: #f9f9f9; border-left: 4px solid var(--accent); color: #666; }
     </style>
 </head>
 <body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回日曆樞紐</a>
+        <span id="sync-status" class="sync-status"></span>
+    </div>
     <div class="container">
         <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')}</h2>
         <div class="video-card">
@@ -544,6 +499,7 @@
             ${comments_html ? comments_html : '<div class="empty-state">暫無高價值長評論。</div>'}
         </div>
     </div>
+    <script id="matrix-engine">${engineScriptContent}<` + `/script>
 </body>
 </html>`;
         }
