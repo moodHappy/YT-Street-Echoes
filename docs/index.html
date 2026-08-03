@@ -109,7 +109,7 @@
     </div>
 
     <script>
-        const archiveData = /*DATA_START*/{"2026":{"6":{"26":[{"time":"18:37","path":"2026/6/2026_6_26_1837_custom.html","title":"📌 单集精读"},{"time":"18:34","path":"2026/6/2026_6_26_1834.html","title":"📌 每周热播"}],"27":[{"time":"08:14","path":"2026/6/2026_6_27_0814_custom.html","title":"📌 单集精读"}],"28":[{"time":"11:42","path":"2026/6/2026_6_28_1142.html","title":"📌 每周热播"}],"29":[{"time":"10:00","path":"2026/6/2026_6_29_1000.html","title":"📌 每周热播"},{"time":"09:38","path":"2026/6/2026_6_29_0938_custom.html","title":"📌 单集精读"}],"30":[{"time":"11:10","path":"2026/6/2026_6_30_1110_custom.html","title":"📌 单集精读"}]},"7":{"6":[{"time":"09:30","path":"2026/7/2026_7_6_0930.html","title":"📌 每周热播"}],"13":[{"time":"09:17","path":"2026/7/2026_7_13_0917.html","title":"📌 每周热播"}],"20":[{"time":"09:17","path":"2026/7/2026_7_20_0917.html","title":"📌 每周热播"}],"27":[{"time":"09:24","path":"2026/7/2026_7_27_0924.html","title":"📌 每周热播"}]},"8":{"3":[{"time":"17:27","path":"2026/8/2026_8_3_1727.html","title":"📌 每周热播"}]}}}/*DATA_END*/;
+        const archiveData = /*DATA_START*/{"2026": {"6": {"30": [{"time": "11:10", "path": "2026/6/2026_6_30_1110_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "29": [{"time": "10:00", "path": "2026/6/2026_6_29_1000.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "09:38", "path": "2026/6/2026_6_29_0938_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "28": [{"time": "11:42", "path": "2026/6/2026_6_28_1142.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "08:14", "path": "2026/6/2026_6_27_0814_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}], "26": [{"time": "18:37", "path": "2026/6/2026_6_26_1837_custom.html", "title": "\ud83d\udccc \u5355\u96c6\u7cbe\u8bfb"}, {"time": "18:34", "path": "2026/6/2026_6_26_1834.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "7": {"6": [{"time": "09:30", "path": "2026/7/2026_7_6_0930.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "27": [{"time": "09:24", "path": "2026/7/2026_7_27_0924.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "20": [{"time": "09:17", "path": "2026/7/2026_7_20_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}], "13": [{"time": "09:17", "path": "2026/7/2026_7_13_0917.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}, "8": {"3": [{"time": "19:07", "path": "2026/8/2026_8_3_1907.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}, {"time": "17:27", "path": "2026/8/2026_8_3_1727.html", "title": "\ud83d\udccc \u6bcf\u5468\u70ed\u64ad"}]}}}/*DATA_END*/;
         const today = new Date();
         
         const AppState = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate(), deleteMode: false };
@@ -312,8 +312,11 @@
                     if (cData.items) {
                         for (let item of cData.items) {
                             const snippet = item.snippet.topLevelComment.snippet;
-                            const text = snippet.textDisplay;
-                            if (text.split(' ').length > 6 && !text.includes('href=')) {
+                            // 修复核心：优先获取 textOriginal，这样就不会有 <br> 标签和被转义的 HTML 实体
+                            const text = snippet.textOriginal || snippet.textDisplay || "";
+                            
+                            // 过滤条件：太短的不要，带网址的不要（使用 textOriginal 时判断 'http'）
+                            if (text.split(' ').length > 6 && !text.includes('http')) {
                                 comments.push({
                                     author: snippet.authorDisplayName,
                                     avatar: snippet.authorProfileImageUrl,
@@ -411,7 +414,6 @@
                 }))
             };
             
-            // 安全转义嵌入 HTML Script 标签中的 JSON
             const pageDataStr = JSON.stringify(pageData).replace(/</g, '\u003c');
 
             function escapeHTML(str) {
@@ -473,9 +475,9 @@
         .likes { font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }
         .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
         
-        /* 气泡批注隔离样式 */
+        /* 气泡批注隔离样式，并追加 white-space: pre-wrap 解决换行排版 */
         .para-wrap { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
-        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
+        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); white-space: pre-wrap; word-wrap: break-word; }
         .anno-toggle, .ai-toggle { display: inline-block; margin-left: 8px; cursor: pointer; opacity: 0.3; font-size: 0.85rem; vertical-align: baseline; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; user-select: none; }
         .anno-toggle:hover, .ai-toggle:hover { opacity: 0.8; transform: scale(1.1); }
         .anno-toggle.has-anno { opacity: 1; }
