@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import re
+import base64
 from datetime import datetime, timezone, timedelta
 
 # ================= 配置區 =================
@@ -17,6 +18,255 @@ CATEGORIES = [
     {"name": "🎬 影視前十 (Movies)", "id": "1"},
     {"name": "💖 粉絲熱推 (Entertainment)", "id": "24"}
 ]
+
+# ================= 批注核心引擎 (仅注入单集精读) =================
+ENGINE_SCRIPT = r"""
+function renderMarkdown(text) {
+    if (typeof marked === 'undefined') return text;
+    let safeText = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                       .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+                       .replace(/\bon[a-z]+\s*=/gi, 'data-blocked=');
+    return marked.parse(safeText);
+}
+
+let syncTimeout = null;
+function scheduleSync() {
+    const statusMsg = document.getElementById('sync-status');
+    statusMsg.style.display = 'inline-block';
+    statusMsg.style.backgroundColor = '#f39c12';
+    statusMsg.innerText = '⏳ 更改已记录，5秒后自动同步...';
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(syncToGitHub, 5000);
+}
+
+const AI_PROMPT = `请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\n\n### 📌 完整翻译\n\n[此处填写完整翻译]\n\n### 📌 Key Expressions\n\n- **[单词或短语]**\n  = [中文释义]\n  （[可选的补充说明，如倒装结构或语境等]）\n\n段落内容：\n`;
+
+async function fetchGroq(text, apiKey, modelName) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: modelName,
+            messages: [
+                { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                { role: 'user', content: AI_PROMPT + `"${text}"` }
+            ],
+            temperature: 0.3
+        })
+    });
+    if (!res.ok) throw new Error(`Groq API Error: ${res.status}`);
+    const json = await res.json();
+    if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+    throw new Error('Groq返回数据异常');
+}
+
+async function fetchGLM(text, apiKey, modelName) {
+    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: modelName,
+            messages: [
+                { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                { role: 'user', content: AI_PROMPT + `"${text}"` }
+            ],
+            temperature: 0.3
+        })
+    });
+    if (!res.ok) throw new Error(`智谱GLM API Error: ${res.status}`);
+    const json = await res.json();
+    if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+    throw new Error('智谱GLM返回数据异常');
+}
+
+async function executeAIPipeline(text) {
+    const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+    const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+    const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+    const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+    const glmModel = localStorage.getItem('GLM_MODEL') || '';
+
+    if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
+
+    const runGroq = async () => { if (!groqKey || !groqModel) throw new Error("Groq 配置缺失"); return await fetchGroq(text, groqKey, groqModel); };
+    const runGLM = async () => { if (!glmKey || !glmModel) throw new Error("智谱GLM 配置缺失"); return await fetchGLM(text, glmKey, glmModel); };
+
+    if (pref === 'groq') {
+        try { return await runGroq(); } catch (err) {
+            console.warn("Groq 失败，降级到智谱:", err);
+            if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ 降级为智谱...'; return await runGLM(); }
+            throw err;
+        }
+    } else {
+        try { return await runGLM(); } catch (err) {
+            console.warn("智谱 失败，降级到Groq:", err);
+            if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 降级为Groq...'; return await runGroq(); }
+            throw err;
+        }
+    }
+}
+
+function initAnnotations() {
+    document.querySelectorAll('.para-wrap').forEach(wrap => {
+        const view = wrap.querySelector('.anno-view');
+        const edit = wrap.querySelector('.anno-edit');
+        const toggle = wrap.querySelector('.anno-toggle');
+        const aiToggle = wrap.querySelector('.ai-toggle');
+        const box = wrap.querySelector('.anno-box');
+
+        const rawText = edit.value.trim();
+        if (rawText) { toggle.classList.add('has-anno'); view.innerHTML = renderMarkdown(rawText); }
+        
+        if (aiToggle) {
+            aiToggle.addEventListener('click', async (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (aiToggle.classList.contains('loading')) return;
+
+                const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                if (!groqKey && !glmKey) { alert('⚠️ 请先返回日历枢纽配置中心设置 AI API Key！'); return; }
+
+                const pClone = wrap.querySelector('.card-text').cloneNode(true);
+                pClone.querySelectorAll('.anno-toggle, .ai-toggle').forEach(el => el.remove());
+                const pText = pClone.textContent.trim();
+                if (!pText) return;
+
+                aiToggle.classList.add('loading');
+                const statusMsg = document.getElementById('sync-status');
+                statusMsg.style.display = 'inline-block';
+                statusMsg.style.backgroundColor = '#007aff';
+                statusMsg.innerText = '🤖 AI 思考中...';
+
+                try {
+                    const aiContent = await executeAIPipeline(pText);
+                    box.style.display = 'block'; view.style.display = 'none'; edit.style.display = 'block';
+                    edit.value = aiContent; edit.focus(); edit.blur();
+                    statusMsg.style.backgroundColor = '#2ea44f'; statusMsg.innerText = '✅ 解析成功';
+                    setTimeout(() => { if (statusMsg.innerText.includes('成功')) statusMsg.style.display = 'none'; }, 2000);
+                } catch (err) {
+                    console.error(err);
+                    alert(err.message === 'MISSING_KEYS_OR_MODELS' ? '⚠️ 请返回配置AI密钥和模型！' : '❌ AI 解析失败: ' + err.message);
+                    statusMsg.style.display = 'none';
+                } finally { aiToggle.classList.remove('loading'); }
+            });
+        }
+
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (box.style.display === 'block') { box.style.display = 'none'; } 
+            else {
+                box.style.display = 'block';
+                if (!edit.value.trim()) { view.style.display = 'none'; edit.style.display = 'block'; setTimeout(() => edit.focus(), 50); } 
+                else { view.style.display = 'block'; edit.style.display = 'none'; }
+            }
+        });
+
+        const triggerEdit = () => { view.style.display = 'none'; edit.style.display = 'block'; edit.value = edit.value; setTimeout(() => edit.focus(), 50); };
+        view.addEventListener('dblclick', () => { box.style.display = 'none'; });
+
+        let lastTap = 0;
+        view.addEventListener('touchstart', e => {
+            if (e.touches.length === 2) { triggerEdit(); } 
+            else if (e.touches.length === 1) {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 500 && tapLength > 0) { box.style.display = 'none'; }
+                lastTap = currentTime;
+            }
+        }, {passive: true});
+
+        edit.addEventListener('blur', () => {
+            const newVal = edit.value.trim();
+            try { view.innerHTML = newVal ? renderMarkdown(newVal) : ''; } catch(e){}
+            edit.style.display = 'none';
+            if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+            else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+
+            if (edit.getAttribute('data-old-val') !== newVal) {
+                edit.setAttribute('data-old-val', newVal);
+                scheduleSync();
+            }
+        });
+        edit.setAttribute('data-old-val', rawText);
+    });
+}
+window.onload = initAnnotations;
+
+function reconstructSelfHTML() {
+    document.querySelectorAll('.anno-edit').forEach(edit => { edit.textContent = edit.value; });
+    
+    const navClone = document.querySelector('.nav-back').cloneNode(true);
+    const containerClone = document.querySelector('.container').cloneNode(true);
+    
+    const statusMsg = navClone.querySelector('#sync-status');
+    if(statusMsg) statusMsg.style.display = 'none';
+    
+    containerClone.querySelectorAll('.anno-box').forEach(box => box.style.display = 'none');
+    containerClone.querySelectorAll('.anno-view').forEach(view => view.style.display = 'none');
+    containerClone.querySelectorAll('.anno-edit').forEach(edit => edit.style.display = 'none');
+
+    const styleText = document.querySelector('style').textContent;
+    const engineText = document.getElementById('matrix-engine').textContent;
+
+    const cleanHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>${document.title}</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
+    <style>${styleText}</style>
+</head>
+<body>
+    ${navClone.outerHTML}
+    ${containerClone.outerHTML}
+    <script id="matrix-engine">${engineText}<\/script>
+</body>
+</html>`;
+    return cleanHTML;
+}
+
+async function syncToGitHub() {
+    const token = localStorage.getItem('GH_TOKEN');
+    const owner = localStorage.getItem('GH_OWNER');
+    const repo = 'YT-Street-Echoes';
+    
+    if(!token || !owner) { alert('缺少 GitHub Token，无法同步！'); return; }
+
+    const statusMsg = document.getElementById('sync-status');
+    statusMsg.style.display = 'inline-block';
+    statusMsg.style.backgroundColor = '#2ea44f';
+    statusMsg.innerText = '📡 同步中...';
+
+    const pureHtml = reconstructSelfHTML();
+    
+    let urlPath = window.location.pathname;
+    const match = urlPath.match(/(\d{4}\/\d{1,2}\/[^/]+\.html)$/);
+    let fileRelPath = match ? "docs/" + match[1] : (urlPath.includes('docs/') ? urlPath.substring(urlPath.indexOf('docs/')) : null);
+    
+    if (!fileRelPath) { alert('路径解析失败！'); statusMsg.style.display = 'none'; return; }
+
+    try {
+        const base64Html = btoa(encodeURIComponent(pureHtml).replace(/%([0-9A-F]{2})/g, function(match, p1) { return String.fromCharCode('0x' + p1); }));
+        const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}?t=${Date.now()}`, { headers: { 'Authorization': `token ${token}` }, cache: 'no-store' });
+        if (!getRes.ok) throw new Error('API 获取 SHA 失败');
+        const fileData = await getRes.json();
+        const putRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `Auto-save annotation`, content: base64Html, sha: fileData.sha })
+        });
+        if(putRes.ok) {
+            statusMsg.style.backgroundColor = '#2ea44f'; statusMsg.innerText = '✅ 云端已同步';
+            setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
+        } else throw new Error('Put 请求失败');
+    } catch(e) {
+        statusMsg.style.backgroundColor = '#e74c3c'; statusMsg.innerText = '❌ 同步失败(重试)';
+        statusMsg.style.cursor = 'pointer';
+        statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToGitHub(); };
+    }
+}
+"""
 # ==========================================
 
 def clean_uppercase(text):
@@ -71,7 +321,7 @@ def fetch_top_comments(video_id):
     return comments[:30]
 
 def save_daily_vibe(daily_data, now_obj):
-    """生成帶有雙重摺疊、且內嵌原版聊天氣泡UI的HTML"""
+    """(保持原样) 生成每週熱播 (無批注版) HTML"""
     year_str, month_str = str(now_obj.year), str(now_obj.month)
     target_dir = os.path.join(BASE_DIR, year_str, month_str)
     os.makedirs(target_dir, exist_ok=True)
@@ -197,7 +447,6 @@ def generate_index():
                 files = sorted([f for f in os.listdir(os.path.join(BASE_DIR, year, month)) if f.endswith('.html')], reverse=True)
                 for file in files:
                     try:
-                        # 从文件名中严格剥离准确时间
                         parts = file.replace(".html", "").split('_')
                         if len(parts) >= 4:
                             f_year = str(int(parts[0]))
@@ -223,6 +472,7 @@ def generate_index():
                         pass
 
     json_data = json.dumps(archive_data)
+    engine_b64 = base64.b64encode(ENGINE_SCRIPT.encode('utf-8')).decode('utf-8')
 
     html_template = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -241,11 +491,11 @@ def generate_index():
         .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px; }
         
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .modal-content { background: var(--card); border-radius: 16px; padding: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-height: 85vh; overflow-y: auto; }
         .modal-title { margin: 0 0 15px 0; font-size: 18px; font-weight: bold; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; font-weight: bold; }
-        .form-group input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+        .form-group input, .form-group select { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
         .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-cancel { background: #eee; color: #333; }
@@ -289,11 +539,24 @@ def generate_index():
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-content">
             <h3 class="modal-title">本地配置中心</h3>
-            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，不会上传到任何第三方服务器。</p>
-            <div class="form-group"><label>YouTube API Key</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
-            <div class="form-group"><label>GitHub Personal Access Token</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
-            <div class="form-group"><label>GitHub 用户名</label><input type="text" id="cfgGhOwner" value="moodHappy" placeholder="例如: moodHappy"></div>
-            <div class="form-group"><label>GitHub 仓库名 (已硬编码)</label><input type="text" id="cfgGhRepo" value="YT-Street-Echoes" readonly disabled style="background:#eee; color:#888;"></div>
+            <p style="font-size:12px; color:#888; margin-top:-10px; margin-bottom:15px;">密钥仅保存在您的浏览器本地，无服务器泄露风险。</p>
+            <div class="form-group"><label>YouTube API Key (后端抓取用)</label><input type="password" id="cfgYtKey" placeholder="AIzaSy..."></div>
+            <div class="form-group"><label>GitHub Token (存储同步用)</label><input type="password" id="cfgGhToken" placeholder="ghp_..."></div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>GitHub 账号</label><input type="text" id="cfgGhOwner" placeholder="moodHappy"></div>
+                <div style="flex:1;"><label>仓库 (硬编码)</label><input type="text" value="YT-Street-Echoes" readonly disabled style="background:#eee; color:#888;"></div>
+            </div>
+            <div style="border-top:1px dashed #ddd; margin: 15px 0;"></div>
+            <div class="form-group"><label>首选 AI 引擎 (批注助手)</label><select id="cfgPrefAI"><option value="groq">Groq</option><option value="glm">智谱</option></select></div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>Groq Key</label><input type="password" id="cfgGroq" placeholder="gsk_..."></div>
+                <div style="flex:1;"><label>Groq 模型</label><input type="text" id="cfgGroqModel" placeholder="llama-3.3-70b-versatile"></div>
+            </div>
+            <div class="form-group" style="display:flex; gap:10px;">
+                <div style="flex:1;"><label>智谱 Key</label><input type="password" id="cfgGLM" placeholder="..."></div>
+                <div style="flex:1;"><label>智谱 模型</label><input type="text" id="cfgGLMModel" placeholder="GLM-4.5-Flash"></div>
+            </div>
+            
             <div class="modal-actions">
                 <button class="btn btn-cancel" id="closeSettingsBtn">取消</button>
                 <button class="btn btn-save" id="saveSettingsBtn">保存配置</button>
@@ -322,57 +585,34 @@ def generate_index():
     </div>
 
     <script>
-        // ================= 1. 终极修复：单向状态机管控 =================
         const archiveData = /*DATA_START*/REPLACEME_JSON_DATA/*DATA_END*/;
         const today = new Date();
         
-        // 所有状态必须严格通过 AppState 对象流转
-        const AppState = {
-            year: today.getFullYear(),
-            month: today.getMonth() + 1,
-            day: today.getDate(),
-            deleteMode: false
-        };
+        const AppState = { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate(), deleteMode: false };
 
         function initSelects() {
             const yearSelect = document.getElementById('yearSelect');
             yearSelect.innerHTML = '';
             const allYears = new Set(Object.keys(archiveData).map(Number));
             for(let i = -5; i <= 50; i++) allYears.add(today.getFullYear() + i);
-            
-            Array.from(allYears).sort((a, b) => b - a).forEach(y => { 
-                const opt = document.createElement('option'); 
-                opt.value = y; 
-                opt.textContent = y + ' 年'; 
-                yearSelect.appendChild(opt); 
-            });
+            Array.from(allYears).sort((a, b) => b - a).forEach(y => { const opt = document.createElement('option'); opt.value = y; opt.textContent = y + ' 年'; yearSelect.appendChild(opt); });
         }
 
-        // ================= 2. 暴力重绘引擎 (解决旧内容残留核心) =================
         function forceRender() {
-            // 修正跨月导致的无效日期（例如切到2月，防止31号残留）
             const maxDay = new Date(AppState.year, AppState.month, 0).getDate();
             if (AppState.day > maxDay) AppState.day = maxDay;
 
-            // 强制同步下拉菜单 UI
             document.getElementById('yearSelect').value = AppState.year;
             document.getElementById('monthSelect').value = AppState.month;
 
             const daysGrid = document.getElementById('daysGrid');
             const newsList = document.getElementById('newsList');
 
-            // 彻底抹除旧节点，免疫原生 DOM 刷新失效的怪异问题
-            daysGrid.innerHTML = '';
-            newsList.innerHTML = '';
+            daysGrid.innerHTML = ''; newsList.innerHTML = '';
 
             try {
-                // 渲染日历网格
                 const firstDay = new Date(AppState.year, AppState.month - 1, 1).getDay() || 7;
-                for (let i = 1; i < firstDay; i++) { 
-                    const emptyCell = document.createElement('div'); 
-                    emptyCell.className = 'day-cell empty'; 
-                    daysGrid.appendChild(emptyCell); 
-                }
+                for (let i = 1; i < firstDay; i++) { const emptyCell = document.createElement('div'); emptyCell.className = 'day-cell empty'; daysGrid.appendChild(emptyCell); }
                 
                 const monthData = (archiveData[AppState.year] && archiveData[AppState.year][AppState.month]) || {};
                 
@@ -384,16 +624,12 @@ def generate_index():
                     if (AppState.year === today.getFullYear() && AppState.month === today.getMonth() + 1 && day === today.getDate()) cell.classList.add('today');
                     if (day === AppState.day) cell.classList.add('selected');
                     
-                    cell.onclick = () => { 
-                        AppState.day = day; 
-                        forceRender(); 
-                    };
+                    cell.onclick = () => { AppState.day = day; forceRender(); };
                     daysGrid.appendChild(cell);
                 }
-            } catch (err) { console.error("日历渲染异常:", err); }
+            } catch (err) {}
 
             try {
-                // 渲染新闻列表（安全链式查找）
                 let dayData = null;
                 if (archiveData[AppState.year] && archiveData[AppState.year][AppState.month] && archiveData[AppState.year][AppState.month][AppState.day]) {
                     dayData = archiveData[AppState.year][AppState.month][AppState.day];
@@ -403,7 +639,6 @@ def generate_index():
                     dayData.forEach((news, index) => {
                         const wrapper = document.createElement('div'); wrapper.className = 'news-item-wrapper';
                         const a = document.createElement('a'); a.href = news.path; a.className = 'news-item';
-                        
                         let displayTitle = news.title.replace("全美 Top 50 深度阅读", "📌 每周热播");
                         const titleStyle = displayTitle.includes("单集") ? 'color: var(--primary);' : '';
                         
@@ -416,55 +651,22 @@ def generate_index():
                         delBtn.onclick = async (e) => {
                             e.preventDefault();
                             if(confirm('确认删除此条目并同步删除云端文件吗？')) {
-                                const pathToDelete = news.path;
-                                dayData.splice(index, 1);
+                                const pathToDelete = news.path; dayData.splice(index, 1);
                                 if (dayData.length === 0) delete archiveData[AppState.year][AppState.month][AppState.day];
-                                forceRender(); // 强刷状态
-                                await syncDeleteToGithub(pathToDelete);
+                                forceRender(); await syncDeleteToGithub(pathToDelete);
                             }
                         };
-                        wrapper.appendChild(delBtn);
-                        newsList.appendChild(wrapper);
+                        wrapper.appendChild(delBtn); newsList.appendChild(wrapper);
                     });
-                } else {
-                    newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
-                }
-            } catch (err) { 
-                console.error("内容列表渲染异常:", err); 
-                newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>';
-            }
+                } else { newsList.innerHTML = '<div class="empty-state">当日暂无归档记录，去外面看看吧 👀</div>'; }
+            } catch (err) {}
         }
 
-        // ================= 3. 完全分离的事件绑定器 =================
-        // 所有事件严格注入，杜绝一切由于渲染导致的监听脱落
-        document.getElementById('yearSelect').addEventListener('change', (e) => {
-            AppState.year = parseInt(e.target.value, 10);
-            forceRender();
-        });
-        
-        document.getElementById('monthSelect').addEventListener('change', (e) => {
-            AppState.month = parseInt(e.target.value, 10);
-            forceRender();
-        });
-        
-        document.getElementById('prevBtn').addEventListener('click', () => {
-            AppState.month--; 
-            if (AppState.month < 1) { AppState.month = 12; AppState.year--; }
-            forceRender();
-        });
-        
-        document.getElementById('nextBtn').addEventListener('click', () => {
-            AppState.month++; 
-            if (AppState.month > 12) { AppState.month = 1; AppState.year++; }
-            forceRender();
-        });
-        
-        document.getElementById('todayBtn').addEventListener('click', () => {
-            AppState.year = today.getFullYear(); 
-            AppState.month = today.getMonth() + 1; 
-            AppState.day = today.getDate();
-            forceRender();
-        });
+        document.getElementById('yearSelect').addEventListener('change', (e) => { AppState.year = parseInt(e.target.value, 10); forceRender(); });
+        document.getElementById('monthSelect').addEventListener('change', (e) => { AppState.month = parseInt(e.target.value, 10); forceRender(); });
+        document.getElementById('prevBtn').addEventListener('click', () => { AppState.month--; if (AppState.month < 1) { AppState.month = 12; AppState.year--; } forceRender(); });
+        document.getElementById('nextBtn').addEventListener('click', () => { AppState.month++; if (AppState.month > 12) { AppState.month = 1; AppState.year++; } forceRender(); });
+        document.getElementById('todayBtn').addEventListener('click', () => { AppState.year = today.getFullYear(); AppState.month = today.getMonth() + 1; AppState.day = today.getDate(); forceRender(); });
 
         let lastTap = 0;
         document.querySelector('.calendar-wrapper').addEventListener('click', (e) => {
@@ -477,28 +679,31 @@ def generate_index():
             lastTap = new Date().getTime();
         });
 
-        // 首次启动注入
-        initSelects();
-        forceRender();
+        initSelects(); forceRender();
 
-        // ================= 4. GitHub 交互模块 (与 DOM 解耦) =================
         document.getElementById('openSettingsBtn').addEventListener('click', () => {
             document.getElementById('cfgYtKey').value = localStorage.getItem('YT_API_KEY') || '';
             document.getElementById('cfgGhToken').value = localStorage.getItem('GH_TOKEN') || '';
             document.getElementById('cfgGhOwner').value = localStorage.getItem('GH_OWNER') || 'moodHappy';
-            // 不再从 localStorage 读取仓库名，因为已彻底硬编码
+            document.getElementById('cfgPrefAI').value = localStorage.getItem('PREFERRED_AI') || 'groq';
+            document.getElementById('cfgGroq').value = localStorage.getItem('GROQ_API_KEY') || '';
+            document.getElementById('cfgGroqModel').value = localStorage.getItem('GROQ_MODEL') || '';
+            document.getElementById('cfgGLM').value = localStorage.getItem('GLM_API_KEY') || '';
+            document.getElementById('cfgGLMModel').value = localStorage.getItem('GLM_MODEL') || '';
             document.getElementById('settingsModal').style.display = 'flex';
         });
 
-        document.getElementById('closeSettingsBtn').addEventListener('click', () => {
-            document.getElementById('settingsModal').style.display = 'none';
-        });
+        document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
 
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
             localStorage.setItem('YT_API_KEY', document.getElementById('cfgYtKey').value.trim());
             localStorage.setItem('GH_TOKEN', document.getElementById('cfgGhToken').value.trim());
             localStorage.setItem('GH_OWNER', document.getElementById('cfgGhOwner').value.trim());
-            // 移除了保存仓库名的逻辑，仅使用硬编码
+            localStorage.setItem('PREFERRED_AI', document.getElementById('cfgPrefAI').value);
+            localStorage.setItem('GROQ_API_KEY', document.getElementById('cfgGroq').value.trim());
+            localStorage.setItem('GROQ_MODEL', document.getElementById('cfgGroqModel').value.trim());
+            localStorage.setItem('GLM_API_KEY', document.getElementById('cfgGLM').value.trim());
+            localStorage.setItem('GLM_MODEL', document.getElementById('cfgGLMModel').value.trim());
             document.getElementById('settingsModal').style.display = 'none';
             alert('配置已本地保存！');
         });
@@ -506,20 +711,13 @@ def generate_index():
         async function syncDeleteToGithub(fileRelPath) {
             const ghToken = localStorage.getItem('GH_TOKEN');
             const ghOwner = localStorage.getItem('GH_OWNER');
-            const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
+            const ghRepo = 'YT-Street-Echoes';
             
-            if (!ghToken || !ghOwner) {
-                alert('提示：本地已删除，但未配置 GitHub Token，远端文件不会被删除。');
-                return;
-            }
+            if (!ghToken || !ghOwner) return;
             try {
-                const loadingBar = document.getElementById('loadingBar');
-                loadingBar.style.width = '10%';
-                
+                const loadingBar = document.getElementById('loadingBar'); loadingBar.style.width = '10%';
                 const targetFilePath = `docs/${fileRelPath}`;
-                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, {
-                    headers: { 'Authorization': `token ${ghToken}` }
-                });
+                const fileRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/${targetFilePath}`, { headers: { 'Authorization': `token ${ghToken}` } });
                 
                 if (fileRes.ok) {
                     const fileData = await fileRes.json();
@@ -531,12 +729,9 @@ def generate_index():
                 }
                 
                 loadingBar.style.width = '50%';
-                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                    headers: { 'Authorization': `token ${ghToken}` }
-                });
+                const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
                 const idxData = await idxRes.json();
                 const idxContent = decodeURIComponent(escape(atob(idxData.content)));
-
                 const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                 const dataEnd = idxContent.indexOf('/*DATA_END*/');
                 const newJsonStr = JSON.stringify(archiveData);
@@ -546,20 +741,11 @@ def generate_index():
                 await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                     method: 'PUT',
                     headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: `Update index.html after deleting file`,
-                        content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                        sha: idxData.sha
-                    })
+                    body: JSON.stringify({ message: `Update index.html after deleting file`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                 });
                 
-                loadingBar.style.width = '100%';
-                setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
-            } catch(e) {
-                console.error("Sync delete failed", e);
-                alert('远端删除过程出现错误，请检查控制台。');
-                document.getElementById('loadingBar').style.width = '0%';
-            }
+                loadingBar.style.width = '100%'; setTimeout(() => { loadingBar.style.width = '0%'; }, 1000);
+            } catch(e) {}
         }
 
         function extractVideoId(url) {
@@ -577,7 +763,7 @@ def generate_index():
                 const ytKey = localStorage.getItem('YT_API_KEY');
                 const ghToken = localStorage.getItem('GH_TOKEN');
                 const ghOwner = localStorage.getItem('GH_OWNER');
-                const ghRepo = 'YT-Street-Echoes'; // <--- 已硬编码
+                const ghRepo = 'YT-Street-Echoes';
                 
                 if (!ytKey || !ghToken || !ghOwner) {
                     alert('请先点击齿轮⚙️配置 API Keys！');
@@ -586,8 +772,7 @@ def generate_index():
                 }
 
                 const loadingBar = document.getElementById('loadingBar');
-                loadingBar.style.width = '10%';
-                this.disabled = true;
+                loadingBar.style.width = '10%'; this.disabled = true;
 
                 try {
                     loadingBar.style.width = '30%';
@@ -617,7 +802,6 @@ def generate_index():
                     comments.sort((a, b) => b.likes - a.likes).slice(0, 30);
 
                     loadingBar.style.width = '65%';
-                    // 安全传递 AppState 变量给子页面
                     const htmlOutput = generateBaseHTMLString(video, comments, AppState.year, AppState.month, AppState.day);
 
                     const now = new Date();
@@ -626,7 +810,6 @@ def generate_index():
                     const dayStr = AppState.day.toString();
                     const hhmmStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
                     const hhmmFile = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
-                    
                     const filename = `${yearStr}_${monthStr}_${dayStr}_${hhmmFile}_custom.html`;
                     const fileRelPath = `${yearStr}/${monthStr}/${filename}`;
 
@@ -634,19 +817,13 @@ def generate_index():
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/${fileRelPath}`, {
                         method: 'PUT',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Add custom video: ${video.snippet.title}`,
-                            content: btoa(unescape(encodeURIComponent(htmlOutput)))
-                        })
+                        body: JSON.stringify({ message: `Add custom video: ${video.snippet.title}`, content: btoa(unescape(encodeURIComponent(htmlOutput))) })
                     });
 
                     loadingBar.style.width = '85%';
-                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
-                        headers: { 'Authorization': `token ${ghToken}` }
-                    });
+                    const idxRes = await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, { headers: { 'Authorization': `token ${ghToken}` } });
                     const idxData = await idxRes.json();
                     const idxContent = decodeURIComponent(escape(atob(idxData.content)));
-
                     const dataStart = idxContent.indexOf('/*DATA_START*/') + 14;
                     const dataEnd = idxContent.indexOf('/*DATA_END*/');
                     const archiveObj = JSON.parse(idxContent.substring(dataStart, dataEnd));
@@ -655,24 +832,15 @@ def generate_index():
                     if (!archiveObj[yearStr][monthStr]) archiveObj[yearStr][monthStr] = {};
                     if (!archiveObj[yearStr][monthStr][dayStr]) archiveObj[yearStr][monthStr][dayStr] = [];
                     
-                    const newItem = {
-                        time: hhmmStr,
-                        path: fileRelPath,
-                        title: `📌 单集精读: ${video.snippet.title}`
-                    };
+                    const newItem = { time: hhmmStr, path: fileRelPath, title: `📌 单集精读: ${video.snippet.title}` };
                     archiveObj[yearStr][monthStr][dayStr].unshift(newItem);
-
                     const newIdxContent = idxContent.substring(0, dataStart) + JSON.stringify(archiveObj) + idxContent.substring(dataEnd);
                     
                     loadingBar.style.width = '95%';
                     await fetch(`https://api.github.com/repos/${ghOwner}/${ghRepo}/contents/docs/index.html`, {
                         method: 'PUT',
                         headers: { 'Authorization': `token ${ghToken}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: `Update index.html calendar with custom video`,
-                            content: btoa(unescape(encodeURIComponent(newIdxContent))),
-                            sha: idxData.sha
-                        })
+                        body: JSON.stringify({ message: `Update calendar`, content: btoa(unescape(encodeURIComponent(newIdxContent))), sha: idxData.sha })
                     });
 
                     if (!archiveData[yearStr]) archiveData[yearStr] = {};
@@ -680,20 +848,25 @@ def generate_index():
                     if (!archiveData[yearStr][monthStr][dayStr]) archiveData[yearStr][monthStr][dayStr] = [];
                     archiveData[yearStr][monthStr][dayStr].unshift(newItem);
 
-                    forceRender(); // 完毕后统一强制同步渲染
+                    forceRender(); 
                     loadingBar.style.width = '100%';
-                    alert('🎉 抓取成功！新视频已无缝添加到您选中的日期中。');
+                    alert('🎉 抓取成功！包含批注功能的单集已生成。');
                     this.value = '';
                     setTimeout(() => { loadingBar.style.width = '0%'; }, 1500);
-
                 } catch (err) {
-                    alert('❌ 操作失败: ' + err.message);
-                    loadingBar.style.width = '0%';
-                } finally {
-                    this.disabled = false;
-                }
+                    alert('❌ 操作失败: ' + err.message); loadingBar.style.width = '0%';
+                } finally { this.disabled = false; }
             }
         });
+
+        // 获取并解码由后端传入的 Base64 安全批注引擎脚本
+        const ENGINE_B64 = 'REPLACEME_ENGINE_B64';
+        function b64DecodeUnicode(str) {
+            return decodeURIComponent(atob(str).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+        }
+        const engineScriptContent = b64DecodeUnicode(ENGINE_B64);
 
         function generateBaseHTMLString(video, comments, sYear, sMonth, sDay) {
             const snippet = video.snippet;
@@ -715,7 +888,13 @@ def generate_index():
                             <span class="author">${c.author}</span>
                             <span class="likes">❤️ ${likes_str}</span>
                         </div>
-                        <div class="bubble">${c.text}</div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">${c.text}<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
             }
@@ -726,12 +905,15 @@ def generate_index():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>${v_title}</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><` + `/script>
     <style>
         :root { --bg: #f2f2f7; --card: #ffffff; --text: #1c1e21; --muted: #8e8e93; --accent: #007aff; --bubble: #e5e5ea; }
         body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; text-align: left; -webkit-font-smoothing: antialiased; }
         .container { max-width: 600px; margin: 0 auto; padding: 0 0 50px 0; }
-        .nav-back { padding: 15px; text-align: center; background: var(--card); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .nav-back a { text-decoration: none; color: white; background: #ff0000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+        .nav-back { padding: 15px; text-align: center; background: var(--card); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; }
+        .nav-back a { text-decoration: none; color: white; background: #ff0000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; position: relative; z-index: 2;}
+        .sync-status { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: none; color: #fff; background: #2ea44f; position: absolute; right: 15px; z-index: 3; }
+        
         .video-card { background: var(--card); border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
         .video-thumb { width: 100%; height: auto; display: block; aspect-ratio: 16/9; object-fit: cover; }
         .video-info { padding: 20px; }
@@ -740,6 +922,7 @@ def generate_index():
         .v-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f0f0f0; padding-top: 15px; }
         .timestamp { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
         .btn-play { background: #ff0000; color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; }
+        
         .chat-container { padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
         .chat-message { display: flex; gap: 12px; align-items: flex-start; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #ddd; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -747,12 +930,34 @@ def generate_index():
         .message-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; padding-left: 2px; }
         .author { font-size: 0.85rem; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
         .likes { font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }
-        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
         .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
+        
+        /* Annotations CSS */
+        .para-wrap { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
+        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); word-wrap: break-word; }
+        .anno-toggle, .ai-toggle { display: inline-block; margin-left: 8px; cursor: pointer; opacity: 0.3; font-size: 0.85rem; vertical-align: baseline; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; user-select: none; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.8; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .anno-box { display: none; margin-top: 8px; width: 100%; box-sizing: border-box; background: #fff; border-left: 3px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .anno-view { font-size: 0.95rem; line-height: 1.5; color: #333; }
+        .anno-edit { width: 100%; min-height: 80px; padding: 10px; font-family: monospace; font-size: 0.95rem; border: 1px dashed #ccc; border-radius: 6px; box-sizing: border-box; display: none; resize: vertical; }
+        .anno-edit:focus { outline: none; border: 1px solid var(--accent); }
+
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: var(--accent); font-size: 1.1rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: #f9f9f9; border-left: 4px solid var(--accent); color: #666; }
     </style>
 </head>
 <body>
-    <div class="nav-back"><a href="../../index.html">🔙 返回日曆樞紐</a></div>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回日曆樞紐</a>
+        <span id="sync-status" class="sync-status"></span>
+    </div>
     <div class="container">
         <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${sYear}-${String(sMonth).padStart(2,'0')}-${String(sDay).padStart(2,'0')}</h2>
         <div class="video-card">
@@ -770,6 +975,7 @@ def generate_index():
             ${comments_html ? comments_html : '<div class="empty-state">暫無高價值長評論。</div>'}
         </div>
     </div>
+    <script id="matrix-engine">${engineScriptContent}<` + `/script>
 </body>
 </html>`;
         }
@@ -778,10 +984,11 @@ def generate_index():
 </html>"""
 
     html_template = html_template.replace('REPLACEME_JSON_DATA', json_data)
+    html_template = html_template.replace('REPLACEME_ENGINE_B64', engine_b64)
 
     with open(os.path.join(BASE_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(html_template)
-    print("🚀 首頁日曆 WebApp (状态机管控隔离版) 已更新！")
+    print("🚀 首頁日曆 WebApp 已更新！并安全植入了AI批注引擎到单集精读构造器。")
 
 def main():
     if not API_KEY:
