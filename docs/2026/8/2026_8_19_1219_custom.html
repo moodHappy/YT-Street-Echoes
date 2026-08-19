@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Niu Lai Full Version (English Subtitles)</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root { --bg: #f2f2f7; --card: #ffffff; --text: #1c1e21; --muted: #8e8e93; --accent: #007aff; --bubble: #e5e5ea; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; text-align: left; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 600px; margin: 0 auto; padding: 0 0 50px 0; }
+        .nav-back { padding: 15px; text-align: center; background: var(--card); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center; }
+        .nav-back a { text-decoration: none; color: white; background: #ff0000; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; position: relative; z-index: 2;}
+        .sync-status { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: none; color: #fff; background: #2ea44f; position: absolute; right: 15px; z-index: 3; }
+        
+        .video-card { background: var(--card); border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+        .video-thumb { width: 100%; height: auto; display: block; aspect-ratio: 16/9; object-fit: cover; }
+        .video-info { padding: 20px; }
+        .v-channel { font-size: 0.85rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+        .v-title { font-size: 1.25rem; font-weight: 700; margin: 0 0 15px 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .v-actions { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f0f0f0; padding-top: 15px; }
+        .timestamp { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+        .btn-play { background: #ff0000; color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; }
+        
+        .chat-container { padding: 0 15px; display: flex; flex-direction: column; gap: 20px; }
+        .chat-message { display: flex; gap: 12px; align-items: flex-start; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #ddd; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .message-content { flex: 1; min-width: 0; }
+        .message-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; padding-left: 2px; }
+        .author { font-size: 0.85rem; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+        .likes { font-size: 0.75rem; color: var(--accent); font-weight: 700; background: #e0f0ff; padding: 2px 8px; border-radius: 10px; }
+        .empty-state { text-align: center; color: var(--muted); padding: 40px 20px; }
+        
+        /* 气泡批注隔离样式，并追加 white-space: pre-wrap 解决换行排版 */
+        .para-wrap { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
+        .bubble { background: var(--card); padding: 12px 16px; border-radius: 2px 18px 18px 18px; font-size: 1.05rem; line-height: 1.5; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.03); white-space: pre-wrap; word-wrap: break-word; }
+        .anno-toggle, .ai-toggle { display: inline-block; margin-left: 8px; cursor: pointer; opacity: 0.3; font-size: 0.85rem; vertical-align: baseline; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; user-select: none; }
+        .anno-toggle:hover, .ai-toggle:hover { opacity: 0.8; transform: scale(1.1); }
+        .anno-toggle.has-anno { opacity: 1; }
+        .ai-toggle.loading::after { content: "⏳"; display: inline-block; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .anno-box { display: none; margin-top: 8px; width: 100%; box-sizing: border-box; background: #fff; border-left: 3px solid var(--accent); padding: 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .anno-view { font-size: 0.95rem; line-height: 1.5; color: #333; }
+        .anno-edit { width: 100%; min-height: 80px; padding: 10px; font-family: monospace; font-size: 0.95rem; border: 1px dashed #ccc; border-radius: 6px; box-sizing: border-box; display: none; resize: vertical; }
+        .anno-edit:focus { outline: none; border: 1px solid var(--accent); }
+
+        .markdown-body p { margin-top: 0; margin-bottom: 8px; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { color: var(--accent); font-size: 1.1rem; margin: 10px 0 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+        .markdown-body ul, .markdown-body ol { margin: 0 0 8px 0; padding-left: 20px; }
+        .markdown-body blockquote { margin: 0 0 10px 0; padding: 10px 15px; background: #f9f9f9; border-left: 4px solid var(--accent); color: #666; }
+    </style>
+</head>
+<body>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回日曆樞紐</a>
+        <span id="sync-status" class="sync-status"></span>
+    </div>
+    <div class="container">
+        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 2026-08-19</h2>
+        <div class="video-card">
+            <a href="https://www.youtube.com/watch?v=NDOqyb5VSdA" target="_blank"><img src="https://i.ytimg.com/vi/NDOqyb5VSdA/maxresdefault.jpg" class="video-thumb" alt="Thumbnail"></a>
+            <div class="video-info">
+                <span class="v-channel">Pet the Actor</span>
+                <h1 class="v-title">Niu Lai Full Version (English Subtitles)</h1>
+                <div class="v-actions">
+                    <span class="timestamp">更新於: 2026-08-19 12:19</span>
+                    <a href="https://www.youtube.com/watch?v=NDOqyb5VSdA" target="_blank" class="btn-play">▶ 原片</a>
+                </div>
+            </div>
+        </div>
+        <div class="chat-container">
+            
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_ny9m20JkXljNLJ1VoQ52hr2M6eZf9GsIrG38OTXGP0Jw=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@samgyeopsal569</span>
+                            <span class="likes">❤️ 1.3k</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Say no to AI slop 
+Say yes to human slop<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/0c8Tbalp0rw82ClcolrUni54FdvgTHnQHJ4jC68k7VX8N3mz69fdRoPdUS4yFwTLUQ_krm9y8p0=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@mattszybiak4496</span>
+                            <span class="likes">❤️ 905</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">The time dilation that this film causes is nuts. I’m only 25 minutes in and I feel, physically and emotionally, like I’ve been watching for 18 hours or so.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_niZqyB0wdBH4-z9zN2SDXueaML6vcEMbCZM2Y52a8tmw=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@onem0repixel</span>
+                            <span class="likes">❤️ 811</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Niu Lai will returns in Avengers: Doomsday<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/vbOLZZ5WlrH9JDJoSDlJwfthH3TCg0PnXYs0qKQX9oqBi_DJmDkIjL8NoruFYAh9jH-EHcRcnQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@shivanshgupta7198</span>
+                            <span class="likes">❤️ 698</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">I can&#039;t thank you enough for your great service to mankind by giving us subtitles.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_kq7_L9c615T4Klj6mupZb4crgBGskEKASkthv4_CXGjWe16RiPpO6dqQMQ1C5V7tBaWQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@Vladimirkoshkin234</span>
+                            <span class="likes">❤️ 525</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Anti AI movement going strong in China<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/XLXlYbqdrlifbBj5n5oygwwpNxMfGIeGKQYzzbkiAlGzGIK-qfvgjWglzmBjg0I1LVxPwPgmmw=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@trashpanda7195</span>
+                            <span class="likes">❤️ 469</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Burning this peak onto a DVD to be saved forever<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_nX7uQwr_rXGh2ytKDt41dwkmBoJl0QrypeMRsrGWc6YA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@jakelee6699</span>
+                            <span class="likes">❤️ 330</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">It&#039;s incredible — a mother and son who knew absolutely nothing about animation spent 5 years making a film, got it released in theaters, and it became an instant hit.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/6Rw7j0TfwPc3S7HrPI1rqs8IZKeN6La6sWe4CJ5uqeLPOQXAelgTMLKiE_LH6kZcSPN4WqM1=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@bread_breadnn</span>
+                            <span class="likes">❤️ 261</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Stop calling this movie a slop. By definition slop is something that&#039;s low efforts and easily made. This film was made by 2 people over the course of 5 years. They worked hard on this film. You can call it bad looking or whatever but calling it slop is wrong.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/SCEA9l46GB3b2QLVAom1Z6ftWgp1x_lJcWpk79f-lKVdaDWKqG1vHN0gan07B5iKGuuHZ1aRbw=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@Miclt131</span>
+                            <span class="likes">❤️ 189</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">The way Christopher Nolan intended us to watch it<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_najrNirkES91uW9O1x7uafNumbXLKuwgH-mLyamJqgfhwuBIDWRZGGBzH6fCNh-gOl0g=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@mankind2770</span>
+                            <span class="likes">❤️ 164</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">i laughed because of the background laughs lol<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/j5WwvSmw9Jt7R9BHZ7egEZpvR4wwJCYGB0Pqt1tDHlrh5Nb7UFdr248390xsviCAHTKyWbW08WQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@drywallfear</span>
+                            <span class="likes">❤️ 146</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">is it bad i find this unironically good<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/NLTEU90Q1cDLVcDi4jm2HphjmZFYGMqreEs6yLwqs4DWDKpJ4d3O_mNeE-X2zhzScGL-5FKCrDs=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@archangel7052</span>
+                            <span class="likes">❤️ 132</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This movie has already earned over one million four hundred thousand USD and counting...Mother son duo hit the jackpot.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/Oos3P3dfmSBKRh4IwiSmeASc-N-Ga0aQ8Ji30FR4-SG7XHmt6YGp3Da5S9Uj4f69bKAuGY0Yzg=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@Storm59-59</span>
+                            <span class="likes">❤️ 131</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">After few years, a group of animators will make re-animated version of this.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/0G17HSzGmmdbVrSFXq36QAy_JnAsPeMztLqsH8grZ1uwCuJdhk_RbmOEshGL2MSrv3xnUPk1Apc=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@t鹏</span>
+                            <span class="likes">❤️ 127</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">The film has left many directors in the Chinese animation industry in self-doubt.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/uGiIoVnNm9dQfSG1Nxi1tpmZuBWJvzDlDMo0dOeebnsrKTMiQoTMVTJ-8vpiTP9Ko1ri2bu-Zw=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@sassyfever7994</span>
+                            <span class="likes">❤️ 103</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Unironically this movie is pretty adorable. Thank you for translating!<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/7IJxo4PloFmwHuGg05A3SZIdbztFhRNYEZobZv0HI8myAOf-zCh7rDII2tIukOwu-byF3kQT=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@愛睡覺的貓-b6v</span>
+                            <span class="likes">❤️ 90</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Fun Fact : This movie was made by only 2 people, a mother and a son.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/EJ2vp8SxaykqrebNLYeVAalIkmEIce8g-KHfkDfqH8CXhZKLYmmjlQXWLufBTQl84-Jd0xvmOA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@Blawlafet</span>
+                            <span class="likes">❤️ 82</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">&quot;Growing up is a subtle accumulation, which is not easy to notice in a short time. If you jump over the stream today, cross the big river tomorrow, and the day after that, you will dare to cross rapids and shoals. Then you will really grow up.&quot;  Better writing than most western movies nowadays.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_nMi4xtXuhfp1tuoQudkeqaWzSOn5C94JWZ6YrOyRpA7Mg=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@HuyBui-wl1cf</span>
+                            <span class="likes">❤️ 68</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Never felt so guilty for watching this for free..<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/O_F5y25eKJtym0ld_39LYMe9fHTuPOec5Il5rjT05FGo-Vd1E7J5aqKIS2OhkIGs4f7DVDGD=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@nage9527</span>
+                            <span class="likes">❤️ 62</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">the best deconstructionist animated film in the world<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ZHVGYOEUv_t4sy256ezbP5nVI7MPie-B17f6tCWdpC92iwi82Dg3SC9DbYBRC4ue-G0mdD4Y=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@kaaslana</span>
+                            <span class="likes">❤️ 52</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">A tear rolled down my thigh its so beautiful<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_mgO5E7OlXCh4fAQOh2UyHdrfTvoN_CqyeZuc6B2BBxqg=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@nathan8966</span>
+                            <span class="likes">❤️ 51</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This looks like something I would watch as a kid<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/_x0Llkdpf9EoigY61fttbvbHhV3SvL4pOpEU4ybv8eZ2zSfW2O27_P3EScCCjpovo8OcJM24=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@stories4thepeople</span>
+                            <span class="likes">❤️ 46</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">*_16:25_**_ For those finding the mama part... here you go_*<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_kPnWgPdaEneGRS_lHThnRi4WowEiydFJHvz_TIJ-uZt0uKxLt_qjIlJRs-UBamd5r2HA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@PressRE4DY</span>
+                            <span class="likes">❤️ 46</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Honey, wake up, The Room of the current generation just dropped.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_n0_VTjsDi4ZSZiBTgfXDrwsDBtIEa8-lz92e83JM1pSIQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@TheLaprasMan</span>
+                            <span class="likes">❤️ 40</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">20:07 imagine you&#039;re walking down the riverbank and a full grown cow stands up on its back legs and yeets itself 30 feet across the river<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_mCc5N2hmakVhagdDBr0aO076LceLvBJ96H9W_9B06X0ZUMzHxwxPsdCYbMP12-CTjgYA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@horusb975</span>
+                            <span class="likes">❤️ 38</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">8 minutes in. I&#039;m not sure I remember what a cow looks like anymore.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_mpSQsiVy3_92bYU_bEPbah2wIRQojKtQAua0I2mwAiGGU=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@sword1066</span>
+                            <span class="likes">❤️ 34</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Hey man, I&#039;m in queue for an overwatch right now, and this video was posted right before i sat in it for 3.5 hours. Thank you for this! Really made the time fly<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/Rr-KMBzbw7B75D7LipgtmYAKirRc2CFZxyzEKUkLqVMnhyM4yiMGgc97NWtgPCXUUNpsHQYExQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@Henrito123</span>
+                            <span class="likes">❤️ 34</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">One of the movies of all time.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_klRth6bCFmk7iQI64aBpvKuhzqF1OPT0den3Irm3XKWRM=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@UltraHarmonics</span>
+                            <span class="likes">❤️ 32</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">this could legitimately be used at Guantanamo Bay to break prisoners<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_lo_qwFBb6np5MYcIcC7uldJDZx5AgfrV3jKwnBrrQt1HM=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@yugorisfriwan</span>
+                            <span class="likes">❤️ 22</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">its not often u get a full movie with a laugh track<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/MMPzVr5X6zhIdlRGhHZmJiOmNetk_woWiExRUp9jcqrzzLk1lxj_iYClcXkGy2yrS1rp6W7EuA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@wiseneofr</span>
+                            <span class="likes">❤️ 20</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Tbh a couple of mother and son handcrafted this for several years make this better. Nothing compares those commercial slop with the power of the mother love❤<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/bXxnGvgaXblvjz1ht4DRjdqnCl4_YDA7iB5ca55bwlcVWJ-MSX20qXvDuXiQMYG85F50WvCu=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@random_fujoshii</span>
+                            <span class="likes">❤️ 19</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">It&#039;s better than AI because you have to think that there&#039;re people making this masterpiece by hands and it&#039;s even funnier<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/78VYauQrZM4AarMzj5onHm2ERUF9Oh4YbmtK37OD5PLRqRm-LP6xPDjoyNc1IhOmV6zgkNv0=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@ChoiBoi-pw9px</span>
+                            <span class="likes">❤️ 19</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">this has hollywood shaking in their boots<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_nsSPDp1QeLA_co132CrF_w0vLyH2R-WP1V1bhhYNNc_g=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@lawrenceong2463</span>
+                            <span class="likes">❤️ 18</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This mother son duo have exceeded Stephen Chow’s latest movie achievement 👏 (smallest budget with just two 1st-timer personnel but making into blockbuster ranking w/in short time span 💪).<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/cukBJMS_HvUDsFMnodw0xib2qczLvjwQOBt_l-Q2L8i1azRSkiNnwtPJXfqnKqFGszSQPOs-uQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@walmart_is_a_cult</span>
+                            <span class="likes">❤️ 17</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Only 6 minutes in and it&#039;s hands down better than the last 2 animated movies I&#039;ve watched, which were made by &#039;professionals&#039;. Thanks for this :)<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_kHcqPboLLI00piawQAKfm2iuSq9hi-Kz39_iD7SztI2t9s=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@ronalddebbarma6882</span>
+                            <span class="likes">❤️ 15</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">If this isn&#039;t a cult classic, idk what is<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_kNAzdojH5SRRGszCKBmdflTmZEgPmujjQzlDF4jijWt4k=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@Uraniu-qc9sg</span>
+                            <span class="likes">❤️ 13</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">A postmodern art form where audience behavior is at its core. The background laughter, the unauthorized filming, the loud discussions—these normally annoying behaviors become its captivating element, making it an immortal masterpiece of postmodern art.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_l0Pr7dcCwuP5hG5aSjKM7w98OS8e4Q-EBwkN6KITyGG4o=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@ahket</span>
+                            <span class="likes">❤️ 12</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This is  definition of “Fuck it. You all rejected me, so I’m gonna make my own movie.” Just like what Tommy Wiseau did.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ZmVIVlkYSK86YqOceLLkNBtdd6NT7ELV-jrearOWDlfRyL1zgQsc2eKaJZbL4atZ-0W18yrhfA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@PhantomIchiban</span>
+                            <span class="likes">❤️ 11</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Hearing everyone in the theater explode into laughter at the very end of this rip actually kinda made me emotional, not gonna lie.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_ml-JslgUpdIuI1pnKdoM_dVhUqB84vRXoYV7WJ49vt4p0=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@JustinY.</span>
+                            <span class="likes">❤️ 9</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This is better than Morbius, cause you know the two people working on this poured love and sweat into this. It deserves success.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_koV2VlnmZXrGI3W71bI1uVKRLKJkBxp9P3ojMb6pJ1RA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@dogethedog5158</span>
+                            <span class="likes">❤️ 7</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This aint even a human slop, its a masterpiece. truly the movie of ALL TIME.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/3V0Z-kTHsNwX03EB7UtbWsWk1CfiVo3htekX3wF_O30I7GCn1AtNJjkcPtKXdpVpYFD8wh2oZQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@MimiSeong_2005</span>
+                            <span class="likes">❤️ 7</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">This movie is really sweet when you know where its coming from.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_kBjsUachS2UrPQkqhpR-oj3P6iiRxqWCZN0i9363T6zssgBYz2cyiAFi0e4ae8WVO8AC4=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@ΟΛΥΜΠΙΑΔΑΚΙΤΣΙΟΥ</span>
+                            <span class="likes">❤️ 7</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">now i see why the chinese love this film so much.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/8SF9-f55o-d0x-Bd4TgA5g1GhdtyNxgsObROOfwChOToGTRV-KQXuCYNkR3ZnGPuSwxZT-pP=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@nawafalmansour-ew1qd</span>
+                            <span class="likes">❤️ 6</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">1:25:16 the audience laughs was the best🤣<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_ml5T4M9VZUx66HATipNeNBaNp36YJXufm8ATUXBvzyjQ=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@MnMPryoBanana</span>
+                            <span class="likes">❤️ 5</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">You all don&#039;t understand, this is a mother&#039;s love letter to her son. 
+
+It isn&#039;t funny, it&#039;s actually really sad and touching.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/BvoBtx14pIwA4uJxnzO1mfw4AUwviJCeUuw1hCdn7QsDbFPZVXouevC-tB97sru-z-hUa813ft8=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@domical245</span>
+                            <span class="likes">❤️ 5</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">I&#039;d still prefer watching this in theaters than any Hollywood AI slop<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_mOkrdMp2ECmwyLE5f32GhtLcogxEBiuWCoSwpbpj4z7Q=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@PathOfDamn</span>
+                            <span class="likes">❤️ 5</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">Holy fuck, please give back my time LOL<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-message">
+                    <img src="https://yt3.ggpht.com/ytc/AIdro_kyiSKSrmo7aiASFtGiprbWOKn699ja-YP5WoY5fcA=s48-c-k-c0x00ffffff-no-rj" class="avatar" alt="avatar" loading="lazy">
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="author">@firstlast4046</span>
+                            <span class="likes">❤️ 3</span>
+                        </div>
+                        <div class="para-wrap">
+                            <div class="bubble card-text">I think it&#039;s cute. A mother and child worked hard on this. They made good memories together.<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                            <div class="anno-box" style="display:none;">
+                                <div class="anno-view markdown-body"></div>
+                                <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+    <script id="page-data" type="application/json">{"year":2026,"month":8,"day":19,"video":{"title":"Niu Lai Full Version (English Subtitles)","channel":"Pet the Actor","thumb":"https://i.ytimg.com/vi/NDOqyb5VSdA/maxresdefault.jpg","url":"https://www.youtube.com/watch?v=NDOqyb5VSdA","now_str":"2026-08-19 12:19"},"comments":[{"author":"@samgyeopsal569","avatar":"https://yt3.ggpht.com/ytc/AIdro_ny9m20JkXljNLJ1VoQ52hr2M6eZf9GsIrG38OTXGP0Jw=s48-c-k-c0x00ffffff-no-rj","likes_str":"1.3k","text":"Say no to AI slop \nSay yes to human slop","annotation":""},{"author":"@mattszybiak4496","avatar":"https://yt3.ggpht.com/0c8Tbalp0rw82ClcolrUni54FdvgTHnQHJ4jC68k7VX8N3mz69fdRoPdUS4yFwTLUQ_krm9y8p0=s48-c-k-c0x00ffffff-no-rj","likes_str":"905","text":"The time dilation that this film causes is nuts. I’m only 25 minutes in and I feel, physically and emotionally, like I’ve been watching for 18 hours or so.","annotation":""},{"author":"@onem0repixel","avatar":"https://yt3.ggpht.com/ytc/AIdro_niZqyB0wdBH4-z9zN2SDXueaML6vcEMbCZM2Y52a8tmw=s48-c-k-c0x00ffffff-no-rj","likes_str":"811","text":"Niu Lai will returns in Avengers: Doomsday","annotation":""},{"author":"@shivanshgupta7198","avatar":"https://yt3.ggpht.com/vbOLZZ5WlrH9JDJoSDlJwfthH3TCg0PnXYs0qKQX9oqBi_DJmDkIjL8NoruFYAh9jH-EHcRcnQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"698","text":"I can't thank you enough for your great service to mankind by giving us subtitles.","annotation":""},{"author":"@Vladimirkoshkin234","avatar":"https://yt3.ggpht.com/ytc/AIdro_kq7_L9c615T4Klj6mupZb4crgBGskEKASkthv4_CXGjWe16RiPpO6dqQMQ1C5V7tBaWQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"525","text":"Anti AI movement going strong in China","annotation":""},{"author":"@trashpanda7195","avatar":"https://yt3.ggpht.com/XLXlYbqdrlifbBj5n5oygwwpNxMfGIeGKQYzzbkiAlGzGIK-qfvgjWglzmBjg0I1LVxPwPgmmw=s48-c-k-c0x00ffffff-no-rj","likes_str":"469","text":"Burning this peak onto a DVD to be saved forever","annotation":""},{"author":"@jakelee6699","avatar":"https://yt3.ggpht.com/ytc/AIdro_nX7uQwr_rXGh2ytKDt41dwkmBoJl0QrypeMRsrGWc6YA=s48-c-k-c0x00ffffff-no-rj","likes_str":"330","text":"It's incredible — a mother and son who knew absolutely nothing about animation spent 5 years making a film, got it released in theaters, and it became an instant hit.","annotation":""},{"author":"@bread_breadnn","avatar":"https://yt3.ggpht.com/6Rw7j0TfwPc3S7HrPI1rqs8IZKeN6La6sWe4CJ5uqeLPOQXAelgTMLKiE_LH6kZcSPN4WqM1=s48-c-k-c0x00ffffff-no-rj","likes_str":"261","text":"Stop calling this movie a slop. By definition slop is something that's low efforts and easily made. This film was made by 2 people over the course of 5 years. They worked hard on this film. You can call it bad looking or whatever but calling it slop is wrong.","annotation":""},{"author":"@Miclt131","avatar":"https://yt3.ggpht.com/SCEA9l46GB3b2QLVAom1Z6ftWgp1x_lJcWpk79f-lKVdaDWKqG1vHN0gan07B5iKGuuHZ1aRbw=s48-c-k-c0x00ffffff-no-rj","likes_str":"189","text":"The way Christopher Nolan intended us to watch it","annotation":""},{"author":"@mankind2770","avatar":"https://yt3.ggpht.com/ytc/AIdro_najrNirkES91uW9O1x7uafNumbXLKuwgH-mLyamJqgfhwuBIDWRZGGBzH6fCNh-gOl0g=s48-c-k-c0x00ffffff-no-rj","likes_str":"164","text":"i laughed because of the background laughs lol","annotation":""},{"author":"@drywallfear","avatar":"https://yt3.ggpht.com/j5WwvSmw9Jt7R9BHZ7egEZpvR4wwJCYGB0Pqt1tDHlrh5Nb7UFdr248390xsviCAHTKyWbW08WQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"146","text":"is it bad i find this unironically good","annotation":""},{"author":"@archangel7052","avatar":"https://yt3.ggpht.com/NLTEU90Q1cDLVcDi4jm2HphjmZFYGMqreEs6yLwqs4DWDKpJ4d3O_mNeE-X2zhzScGL-5FKCrDs=s48-c-k-c0x00ffffff-no-rj","likes_str":"132","text":"This movie has already earned over one million four hundred thousand USD and counting...Mother son duo hit the jackpot.","annotation":""},{"author":"@Storm59-59","avatar":"https://yt3.ggpht.com/Oos3P3dfmSBKRh4IwiSmeASc-N-Ga0aQ8Ji30FR4-SG7XHmt6YGp3Da5S9Uj4f69bKAuGY0Yzg=s48-c-k-c0x00ffffff-no-rj","likes_str":"131","text":"After few years, a group of animators will make re-animated version of this.","annotation":""},{"author":"@t鹏","avatar":"https://yt3.ggpht.com/0G17HSzGmmdbVrSFXq36QAy_JnAsPeMztLqsH8grZ1uwCuJdhk_RbmOEshGL2MSrv3xnUPk1Apc=s48-c-k-c0x00ffffff-no-rj","likes_str":"127","text":"The film has left many directors in the Chinese animation industry in self-doubt.","annotation":""},{"author":"@sassyfever7994","avatar":"https://yt3.ggpht.com/uGiIoVnNm9dQfSG1Nxi1tpmZuBWJvzDlDMo0dOeebnsrKTMiQoTMVTJ-8vpiTP9Ko1ri2bu-Zw=s48-c-k-c0x00ffffff-no-rj","likes_str":"103","text":"Unironically this movie is pretty adorable. Thank you for translating!","annotation":""},{"author":"@愛睡覺的貓-b6v","avatar":"https://yt3.ggpht.com/7IJxo4PloFmwHuGg05A3SZIdbztFhRNYEZobZv0HI8myAOf-zCh7rDII2tIukOwu-byF3kQT=s48-c-k-c0x00ffffff-no-rj","likes_str":"90","text":"Fun Fact : This movie was made by only 2 people, a mother and a son.","annotation":""},{"author":"@Blawlafet","avatar":"https://yt3.ggpht.com/EJ2vp8SxaykqrebNLYeVAalIkmEIce8g-KHfkDfqH8CXhZKLYmmjlQXWLufBTQl84-Jd0xvmOA=s48-c-k-c0x00ffffff-no-rj","likes_str":"82","text":"\"Growing up is a subtle accumulation, which is not easy to notice in a short time. If you jump over the stream today, cross the big river tomorrow, and the day after that, you will dare to cross rapids and shoals. Then you will really grow up.\"  Better writing than most western movies nowadays.","annotation":""},{"author":"@HuyBui-wl1cf","avatar":"https://yt3.ggpht.com/ytc/AIdro_nMi4xtXuhfp1tuoQudkeqaWzSOn5C94JWZ6YrOyRpA7Mg=s48-c-k-c0x00ffffff-no-rj","likes_str":"68","text":"Never felt so guilty for watching this for free..","annotation":""},{"author":"@nage9527","avatar":"https://yt3.ggpht.com/O_F5y25eKJtym0ld_39LYMe9fHTuPOec5Il5rjT05FGo-Vd1E7J5aqKIS2OhkIGs4f7DVDGD=s48-c-k-c0x00ffffff-no-rj","likes_str":"62","text":"the best deconstructionist animated film in the world","annotation":""},{"author":"@kaaslana","avatar":"https://yt3.ggpht.com/ZHVGYOEUv_t4sy256ezbP5nVI7MPie-B17f6tCWdpC92iwi82Dg3SC9DbYBRC4ue-G0mdD4Y=s48-c-k-c0x00ffffff-no-rj","likes_str":"52","text":"A tear rolled down my thigh its so beautiful","annotation":""},{"author":"@nathan8966","avatar":"https://yt3.ggpht.com/ytc/AIdro_mgO5E7OlXCh4fAQOh2UyHdrfTvoN_CqyeZuc6B2BBxqg=s48-c-k-c0x00ffffff-no-rj","likes_str":"51","text":"This looks like something I would watch as a kid","annotation":""},{"author":"@stories4thepeople","avatar":"https://yt3.ggpht.com/_x0Llkdpf9EoigY61fttbvbHhV3SvL4pOpEU4ybv8eZ2zSfW2O27_P3EScCCjpovo8OcJM24=s48-c-k-c0x00ffffff-no-rj","likes_str":"46","text":"*_16:25_**_ For those finding the mama part... here you go_*","annotation":""},{"author":"@PressRE4DY","avatar":"https://yt3.ggpht.com/ytc/AIdro_kPnWgPdaEneGRS_lHThnRi4WowEiydFJHvz_TIJ-uZt0uKxLt_qjIlJRs-UBamd5r2HA=s48-c-k-c0x00ffffff-no-rj","likes_str":"46","text":"Honey, wake up, The Room of the current generation just dropped.","annotation":""},{"author":"@TheLaprasMan","avatar":"https://yt3.ggpht.com/ytc/AIdro_n0_VTjsDi4ZSZiBTgfXDrwsDBtIEa8-lz92e83JM1pSIQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"40","text":"20:07 imagine you're walking down the riverbank and a full grown cow stands up on its back legs and yeets itself 30 feet across the river","annotation":""},{"author":"@horusb975","avatar":"https://yt3.ggpht.com/ytc/AIdro_mCc5N2hmakVhagdDBr0aO076LceLvBJ96H9W_9B06X0ZUMzHxwxPsdCYbMP12-CTjgYA=s48-c-k-c0x00ffffff-no-rj","likes_str":"38","text":"8 minutes in. I'm not sure I remember what a cow looks like anymore.","annotation":""},{"author":"@sword1066","avatar":"https://yt3.ggpht.com/ytc/AIdro_mpSQsiVy3_92bYU_bEPbah2wIRQojKtQAua0I2mwAiGGU=s48-c-k-c0x00ffffff-no-rj","likes_str":"34","text":"Hey man, I'm in queue for an overwatch right now, and this video was posted right before i sat in it for 3.5 hours. Thank you for this! Really made the time fly","annotation":""},{"author":"@Henrito123","avatar":"https://yt3.ggpht.com/Rr-KMBzbw7B75D7LipgtmYAKirRc2CFZxyzEKUkLqVMnhyM4yiMGgc97NWtgPCXUUNpsHQYExQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"34","text":"One of the movies of all time.","annotation":""},{"author":"@UltraHarmonics","avatar":"https://yt3.ggpht.com/ytc/AIdro_klRth6bCFmk7iQI64aBpvKuhzqF1OPT0den3Irm3XKWRM=s48-c-k-c0x00ffffff-no-rj","likes_str":"32","text":"this could legitimately be used at Guantanamo Bay to break prisoners","annotation":""},{"author":"@yugorisfriwan","avatar":"https://yt3.ggpht.com/ytc/AIdro_lo_qwFBb6np5MYcIcC7uldJDZx5AgfrV3jKwnBrrQt1HM=s48-c-k-c0x00ffffff-no-rj","likes_str":"22","text":"its not often u get a full movie with a laugh track","annotation":""},{"author":"@wiseneofr","avatar":"https://yt3.ggpht.com/MMPzVr5X6zhIdlRGhHZmJiOmNetk_woWiExRUp9jcqrzzLk1lxj_iYClcXkGy2yrS1rp6W7EuA=s48-c-k-c0x00ffffff-no-rj","likes_str":"20","text":"Tbh a couple of mother and son handcrafted this for several years make this better. Nothing compares those commercial slop with the power of the mother love❤","annotation":""},{"author":"@random_fujoshii","avatar":"https://yt3.ggpht.com/bXxnGvgaXblvjz1ht4DRjdqnCl4_YDA7iB5ca55bwlcVWJ-MSX20qXvDuXiQMYG85F50WvCu=s48-c-k-c0x00ffffff-no-rj","likes_str":"19","text":"It's better than AI because you have to think that there're people making this masterpiece by hands and it's even funnier","annotation":""},{"author":"@ChoiBoi-pw9px","avatar":"https://yt3.ggpht.com/78VYauQrZM4AarMzj5onHm2ERUF9Oh4YbmtK37OD5PLRqRm-LP6xPDjoyNc1IhOmV6zgkNv0=s48-c-k-c0x00ffffff-no-rj","likes_str":"19","text":"this has hollywood shaking in their boots","annotation":""},{"author":"@lawrenceong2463","avatar":"https://yt3.ggpht.com/ytc/AIdro_nsSPDp1QeLA_co132CrF_w0vLyH2R-WP1V1bhhYNNc_g=s48-c-k-c0x00ffffff-no-rj","likes_str":"18","text":"This mother son duo have exceeded Stephen Chow’s latest movie achievement 👏 (smallest budget with just two 1st-timer personnel but making into blockbuster ranking w/in short time span 💪).","annotation":""},{"author":"@walmart_is_a_cult","avatar":"https://yt3.ggpht.com/cukBJMS_HvUDsFMnodw0xib2qczLvjwQOBt_l-Q2L8i1azRSkiNnwtPJXfqnKqFGszSQPOs-uQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"17","text":"Only 6 minutes in and it's hands down better than the last 2 animated movies I've watched, which were made by 'professionals'. Thanks for this :)","annotation":""},{"author":"@ronalddebbarma6882","avatar":"https://yt3.ggpht.com/ytc/AIdro_kHcqPboLLI00piawQAKfm2iuSq9hi-Kz39_iD7SztI2t9s=s48-c-k-c0x00ffffff-no-rj","likes_str":"15","text":"If this isn't a cult classic, idk what is","annotation":""},{"author":"@Uraniu-qc9sg","avatar":"https://yt3.ggpht.com/ytc/AIdro_kNAzdojH5SRRGszCKBmdflTmZEgPmujjQzlDF4jijWt4k=s48-c-k-c0x00ffffff-no-rj","likes_str":"13","text":"A postmodern art form where audience behavior is at its core. The background laughter, the unauthorized filming, the loud discussions—these normally annoying behaviors become its captivating element, making it an immortal masterpiece of postmodern art.","annotation":""},{"author":"@ahket","avatar":"https://yt3.ggpht.com/ytc/AIdro_l0Pr7dcCwuP5hG5aSjKM7w98OS8e4Q-EBwkN6KITyGG4o=s48-c-k-c0x00ffffff-no-rj","likes_str":"12","text":"This is  definition of “Fuck it. You all rejected me, so I’m gonna make my own movie.” Just like what Tommy Wiseau did.","annotation":""},{"author":"@PhantomIchiban","avatar":"https://yt3.ggpht.com/ZmVIVlkYSK86YqOceLLkNBtdd6NT7ELV-jrearOWDlfRyL1zgQsc2eKaJZbL4atZ-0W18yrhfA=s48-c-k-c0x00ffffff-no-rj","likes_str":"11","text":"Hearing everyone in the theater explode into laughter at the very end of this rip actually kinda made me emotional, not gonna lie.","annotation":""},{"author":"@JustinY.","avatar":"https://yt3.ggpht.com/ytc/AIdro_ml-JslgUpdIuI1pnKdoM_dVhUqB84vRXoYV7WJ49vt4p0=s48-c-k-c0x00ffffff-no-rj","likes_str":"9","text":"This is better than Morbius, cause you know the two people working on this poured love and sweat into this. It deserves success.","annotation":""},{"author":"@dogethedog5158","avatar":"https://yt3.ggpht.com/ytc/AIdro_koV2VlnmZXrGI3W71bI1uVKRLKJkBxp9P3ojMb6pJ1RA=s48-c-k-c0x00ffffff-no-rj","likes_str":"7","text":"This aint even a human slop, its a masterpiece. truly the movie of ALL TIME.","annotation":""},{"author":"@MimiSeong_2005","avatar":"https://yt3.ggpht.com/3V0Z-kTHsNwX03EB7UtbWsWk1CfiVo3htekX3wF_O30I7GCn1AtNJjkcPtKXdpVpYFD8wh2oZQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"7","text":"This movie is really sweet when you know where its coming from.","annotation":""},{"author":"@ΟΛΥΜΠΙΑΔΑΚΙΤΣΙΟΥ","avatar":"https://yt3.ggpht.com/ytc/AIdro_kBjsUachS2UrPQkqhpR-oj3P6iiRxqWCZN0i9363T6zssgBYz2cyiAFi0e4ae8WVO8AC4=s48-c-k-c0x00ffffff-no-rj","likes_str":"7","text":"now i see why the chinese love this film so much.","annotation":""},{"author":"@nawafalmansour-ew1qd","avatar":"https://yt3.ggpht.com/8SF9-f55o-d0x-Bd4TgA5g1GhdtyNxgsObROOfwChOToGTRV-KQXuCYNkR3ZnGPuSwxZT-pP=s48-c-k-c0x00ffffff-no-rj","likes_str":"6","text":"1:25:16 the audience laughs was the best🤣","annotation":""},{"author":"@MnMPryoBanana","avatar":"https://yt3.ggpht.com/ytc/AIdro_ml5T4M9VZUx66HATipNeNBaNp36YJXufm8ATUXBvzyjQ=s48-c-k-c0x00ffffff-no-rj","likes_str":"5","text":"You all don't understand, this is a mother's love letter to her son. \n\nIt isn't funny, it's actually really sad and touching.","annotation":""},{"author":"@domical245","avatar":"https://yt3.ggpht.com/BvoBtx14pIwA4uJxnzO1mfw4AUwviJCeUuw1hCdn7QsDbFPZVXouevC-tB97sru-z-hUa813ft8=s48-c-k-c0x00ffffff-no-rj","likes_str":"5","text":"I'd still prefer watching this in theaters than any Hollywood AI slop","annotation":""},{"author":"@PathOfDamn","avatar":"https://yt3.ggpht.com/ytc/AIdro_mOkrdMp2ECmwyLE5f32GhtLcogxEBiuWCoSwpbpj4z7Q=s48-c-k-c0x00ffffff-no-rj","likes_str":"5","text":"Holy fuck, please give back my time LOL","annotation":""},{"author":"@firstlast4046","avatar":"https://yt3.ggpht.com/ytc/AIdro_kyiSKSrmo7aiASFtGiprbWOKn699ja-YP5WoY5fcA=s48-c-k-c0x00ffffff-no-rj","likes_str":"3","text":"I think it's cute. A mother and child worked hard on this. They made good memories together.","annotation":""}]}</script>
+    <script id="matrix-engine">
+function renderMarkdown(text) {
+    if (typeof marked === 'undefined') return text;
+    let safeText = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                       .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+                       .replace(/\bon[a-z]+\s*=/gi, 'data-blocked=');
+    return marked.parse(safeText);
+}
+
+let syncTimeout = null;
+function scheduleSync() {
+    const statusMsg = document.getElementById('sync-status');
+    statusMsg.style.display = 'inline-block';
+    statusMsg.style.backgroundColor = '#f39c12';
+    statusMsg.innerText = '⏳ 更改已记录，5秒后自动同步...';
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(syncToGitHub, 5000);
+}
+
+const AI_PROMPT = `请分析以下英文段落，并严格按照以下 Markdown 格式输出（不要输出任何额外的废话）：\n\n### 📌 完整翻译\n\n[此处填写完整翻译]\n\n### 📌 Key Expressions\n\n- **[单词或短语]**\n  = [中文释义]\n  （[可选的补充说明，如倒装结构或语境等]）\n\n段落内容：\n`;
+
+async function fetchGroq(text, apiKey, modelName) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: modelName,
+            messages: [
+                { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                { role: 'user', content: AI_PROMPT + `"${text}"` }
+            ],
+            temperature: 0.3
+        })
+    });
+    if (!res.ok) throw new Error(`Groq API Error: ${res.status}`);
+    const json = await res.json();
+    if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+    throw new Error('Groq返回数据异常');
+}
+
+async function fetchGLM(text, apiKey, modelName) {
+    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: modelName,
+            messages: [
+                { role: 'system', content: 'You are an English teacher. Output EXACTLY in the requested Markdown format.' },
+                { role: 'user', content: AI_PROMPT + `"${text}"` }
+            ],
+            temperature: 0.3
+        })
+    });
+    if (!res.ok) throw new Error(`智谱GLM API Error: ${res.status}`);
+    const json = await res.json();
+    if (json.choices && json.choices.length > 0) return json.choices[0].message.content.trim();
+    throw new Error('智谱GLM返回数据异常');
+}
+
+async function executeAIPipeline(text) {
+    const pref = localStorage.getItem('PREFERRED_AI') || 'groq';
+    const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+    const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+    const groqModel = localStorage.getItem('GROQ_MODEL') || '';
+    const glmModel = localStorage.getItem('GLM_MODEL') || '';
+
+    if ((!groqKey && !glmKey) || (!groqModel && !glmModel)) throw new Error('MISSING_KEYS_OR_MODELS');
+
+    const runGroq = async () => { if (!groqKey || !groqModel) throw new Error("Groq 配置缺失"); return await fetchGroq(text, groqKey, groqModel); };
+    const runGLM = async () => { if (!glmKey || !glmModel) throw new Error("智谱GLM 配置缺失"); return await fetchGLM(text, glmKey, glmModel); };
+
+    if (pref === 'groq') {
+        try { return await runGroq(); } catch (err) {
+            console.warn("Groq 失败，降级到智谱:", err);
+            if (glmKey && glmModel) { document.getElementById('sync-status').innerText = '⚠️ 降级为智谱...'; return await runGLM(); }
+            throw err;
+        }
+    } else {
+        try { return await runGLM(); } catch (err) {
+            console.warn("智谱 失败，降级到Groq:", err);
+            if (groqKey && groqModel) { document.getElementById('sync-status').innerText = '⚠️ 降级为Groq...'; return await runGroq(); }
+            throw err;
+        }
+    }
+}
+
+function initAnnotations() {
+    document.querySelectorAll('.para-wrap').forEach(wrap => {
+        const view = wrap.querySelector('.anno-view');
+        const edit = wrap.querySelector('.anno-edit');
+        const toggle = wrap.querySelector('.anno-toggle');
+        const aiToggle = wrap.querySelector('.ai-toggle');
+        const box = wrap.querySelector('.anno-box');
+
+        const rawText = edit.value.trim();
+        if (rawText) { toggle.classList.add('has-anno'); view.innerHTML = renderMarkdown(rawText); }
+        
+        if (aiToggle) {
+            aiToggle.addEventListener('click', async (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (aiToggle.classList.contains('loading')) return;
+
+                const groqKey = localStorage.getItem('GROQ_API_KEY') || '';
+                const glmKey = localStorage.getItem('GLM_API_KEY') || '';
+                if (!groqKey && !glmKey) { alert('⚠️ 请先返回日历枢纽配置中心设置 AI API Key！'); return; }
+
+                const pClone = wrap.querySelector('.card-text').cloneNode(true);
+                pClone.querySelectorAll('.anno-toggle, .ai-toggle').forEach(el => el.remove());
+                const pText = pClone.textContent.trim();
+                if (!pText) return;
+
+                aiToggle.classList.add('loading');
+                const statusMsg = document.getElementById('sync-status');
+                statusMsg.style.display = 'inline-block';
+                statusMsg.style.backgroundColor = '#007aff';
+                statusMsg.innerText = '🤖 AI 思考中...';
+
+                try {
+                    const aiContent = await executeAIPipeline(pText);
+                    box.style.display = 'block'; view.style.display = 'none'; edit.style.display = 'block';
+                    edit.value = aiContent; edit.focus(); edit.blur(); // 触发保存
+                    statusMsg.style.backgroundColor = '#2ea44f'; statusMsg.innerText = '✅ 解析成功';
+                    setTimeout(() => { if (statusMsg.innerText.includes('成功')) statusMsg.style.display = 'none'; }, 2000);
+                } catch (err) {
+                    console.error(err);
+                    alert(err.message === 'MISSING_KEYS_OR_MODELS' ? '⚠️ 请返回配置AI密钥和模型！' : '❌ AI 解析失败: ' + err.message);
+                    statusMsg.style.display = 'none';
+                } finally { aiToggle.classList.remove('loading'); }
+            });
+        }
+
+        toggle.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (box.style.display === 'block') { box.style.display = 'none'; } 
+            else {
+                box.style.display = 'block';
+                if (!edit.value.trim()) { view.style.display = 'none'; edit.style.display = 'block'; setTimeout(() => edit.focus(), 50); } 
+                else { view.style.display = 'block'; edit.style.display = 'none'; }
+            }
+        });
+
+        const triggerEdit = () => { view.style.display = 'none'; edit.style.display = 'block'; edit.value = edit.value; setTimeout(() => edit.focus(), 50); };
+        view.addEventListener('dblclick', () => { box.style.display = 'none'; });
+
+        let lastTap = 0;
+        view.addEventListener('touchstart', e => {
+            if (e.touches.length === 2) { triggerEdit(); } 
+            else if (e.touches.length === 1) {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTap;
+                if (tapLength < 500 && tapLength > 0) { box.style.display = 'none'; }
+                lastTap = currentTime;
+            }
+        }, {passive: true});
+
+        edit.addEventListener('blur', () => {
+            const newVal = edit.value.trim();
+            try { view.innerHTML = newVal ? renderMarkdown(newVal) : ''; } catch(e){}
+            edit.style.display = 'none';
+            if (newVal) { view.style.display = 'block'; toggle.classList.add('has-anno'); } 
+            else { view.style.display = 'none'; box.style.display = 'none'; toggle.classList.remove('has-anno'); }
+
+            if (edit.getAttribute('data-old-val') !== newVal) {
+                edit.setAttribute('data-old-val', newVal);
+                scheduleSync();
+            }
+        });
+        edit.setAttribute('data-old-val', rawText);
+    });
+}
+window.onload = initAnnotations;
+
+function escapeHTML(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+// 🔥终极隔离重建法：不抓取DOM，只读取输入框纯文本和JSON包，重新构建完美结构HTML
+function reconstructSelfHTML() {
+    const dataTag = document.getElementById('page-data');
+    if (!dataTag) throw new Error("Missing state data!");
+    const pageData = JSON.parse(dataTag.textContent);
+    
+    document.querySelectorAll('.chat-message').forEach((msg, idx) => {
+        const edit = msg.querySelector('.anno-edit');
+        if (pageData.comments[idx] && edit) {
+            pageData.comments[idx].annotation = edit.value || "";
+        }
+    });
+
+    const newJsonStr = JSON.stringify(pageData).replace(/</g, '\\u003c');
+    const engineText = document.getElementById('matrix-engine').textContent;
+    const styleText = document.querySelector('style').textContent;
+    const titleText = document.title;
+
+    let comments_html = "";
+    pageData.comments.forEach(c => {
+        comments_html += `
+        <div class="chat-message">
+            <img src="${escapeHTML(c.avatar)}" class="avatar" alt="avatar" loading="lazy">
+            <div class="message-content">
+                <div class="message-header">
+                    <span class="author">${escapeHTML(c.author)}</span>
+                    <span class="likes">❤️ ${escapeHTML(c.likes_str)}</span>
+                </div>
+                <div class="para-wrap">
+                    <div class="bubble card-text">${escapeHTML(c.text)}<span class="anno-toggle" title="点击添加/查看批注">🔴</span><span class="ai-toggle" title="AI智能解析">🤖</span></div>
+                    <div class="anno-box" style="display:none;">
+                        <div class="anno-view markdown-body"></div>
+                        <textarea class="anno-edit" style="display:none;" placeholder="在此记录有关该评论的解析或灵感...">${escapeHTML(c.annotation)}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    const cleanHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>${escapeHTML(titleText)}</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script>
+    <style>${styleText}</style>
+</head>
+<body>
+    <div class="nav-back">
+        <a href="../../index.html">🔙 返回日曆樞紐</a>
+        <span id="sync-status" class="sync-status"></span>
+    </div>
+    <div class="container">
+        <h2 style="text-align: center; margin-bottom: 25px; color: #333;">📅 ${pageData.year}-${String(pageData.month).padStart(2,'0')}-${String(pageData.day).padStart(2,'0')}</h2>
+        <div class="video-card">
+            <a href="${escapeHTML(pageData.video.url)}" target="_blank"><img src="${escapeHTML(pageData.video.thumb)}" class="video-thumb" alt="Thumbnail"></a>
+            <div class="video-info">
+                <span class="v-channel">${escapeHTML(pageData.video.channel)}</span>
+                <h1 class="v-title">${escapeHTML(pageData.video.title)}</h1>
+                <div class="v-actions">
+                    <span class="timestamp">更新於: ${escapeHTML(pageData.video.now_str)}</span>
+                    <a href="${escapeHTML(pageData.video.url)}" target="_blank" class="btn-play">▶ 原片</a>
+                </div>
+            </div>
+        </div>
+        <div class="chat-container">
+            ${comments_html ? comments_html : '<div class="empty-state">暫無高价值長評論。</div>'}
+        </div>
+    </div>
+    <script id="page-data" type="application/json">${newJsonStr}<\/script>
+    <script id="matrix-engine">${engineText}<\/script>
+</body>
+</html>`;
+    return cleanHTML;
+}
+
+async function syncToGitHub() {
+    const token = localStorage.getItem('GH_TOKEN');
+    const owner = localStorage.getItem('GH_OWNER');
+    const repo = 'YT-Street-Echoes';
+    
+    if(!token || !owner) { alert('缺少 GitHub Token，无法同步！'); return; }
+
+    const statusMsg = document.getElementById('sync-status');
+    statusMsg.style.display = 'inline-block';
+    statusMsg.style.backgroundColor = '#2ea44f';
+    statusMsg.innerText = '📡 同步中...';
+
+    const pureHtml = reconstructSelfHTML();
+    
+    let urlPath = window.location.pathname;
+    const match = urlPath.match(/(\d{4}\/\d{1,2}\/[^/]+\.html)$/);
+    let fileRelPath = match ? "docs/" + match[1] : (urlPath.includes('docs/') ? urlPath.substring(urlPath.indexOf('docs/')) : null);
+    
+    if (!fileRelPath) { alert('路径解析失败！'); statusMsg.style.display = 'none'; return; }
+
+    try {
+        const base64Html = btoa(encodeURIComponent(pureHtml).replace(/%([0-9A-F]{2})/g, function(match, p1) { return String.fromCharCode('0x' + p1); }));
+        const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}?t=${Date.now()}`, { headers: { 'Authorization': `token ${token}` }, cache: 'no-store' });
+        if (!getRes.ok) throw new Error('API 获取 SHA 失败');
+        const fileData = await getRes.json();
+        const putRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${fileRelPath}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `Auto-save annotation`, content: base64Html, sha: fileData.sha })
+        });
+        if(putRes.ok) {
+            statusMsg.style.backgroundColor = '#2ea44f'; statusMsg.innerText = '✅ 云端已同步';
+            setTimeout(() => { if (statusMsg.innerText === '✅ 云端已同步') statusMsg.style.display = 'none'; }, 3000);
+        } else throw new Error('Put 请求失败');
+    } catch(e) {
+        statusMsg.style.backgroundColor = '#e74c3c'; statusMsg.innerText = '❌ 同步失败(重试)';
+        statusMsg.style.cursor = 'pointer';
+        statusMsg.onclick = () => { statusMsg.onclick = null; statusMsg.style.cursor = 'default'; syncToGitHub(); };
+    }
+}
+</script>
+</body>
+</html>
